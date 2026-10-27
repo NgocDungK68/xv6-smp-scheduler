@@ -151,6 +151,10 @@ UPROGS=\
 	$U/_forphan\
 	$U/_dorphan\
 	$U/_sync\
+	$U/_benchmark\
+	$U/_perform\
+	$U/_testws\
+	$U/_testmockws\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
