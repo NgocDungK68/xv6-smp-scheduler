@@ -21,6 +21,16 @@ sys_getpid(void)
 {
   return myproc()->pid;
 }
+// Return the ID of the CPU currently executing this system call.
+uint64
+sys_getcpu(void)
+{
+  push_off();
+  int id = cpuid();
+  pop_off();
+
+  return id;
+}
 
 uint64
 sys_fork(void)
