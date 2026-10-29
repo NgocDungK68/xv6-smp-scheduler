@@ -1,4 +1,3 @@
-
 #ifndef XV6_RUNQUEUE_H
 #define XV6_RUNQUEUE_H
 
@@ -27,7 +26,7 @@ struct proc *rq_peek_at(int cpu_id, int offset);
 int rq_remove(int cpu_id, struct proc *p);
 
 #ifdef RUNQUEUE_TEST
-void         rq_selftest(void);
+void rq_selftest(void);
 #endif
 
 #endif
