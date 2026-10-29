@@ -32,6 +32,21 @@ sys_getcpu(void)
   return id;
 }
 
+// System call: set CPU affinity for a process.
+uint64
+sys_sched_setaffinity(void)
+{
+  int pid;
+  int mask;
+
+  // Lay hai tham so tu User Space
+  argint(0, &pid);
+  argint(1, &mask);
+
+  // Goi ham Kernel de cap nhat CPU Affinity Mask
+  return ksetaffinity(pid, (uint)mask);
+}
+
 uint64
 sys_fork(void)
 {

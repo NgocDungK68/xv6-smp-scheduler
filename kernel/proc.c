@@ -124,6 +124,8 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+   // Mac dinh cho phep tien trinh chay tren tat ca CPU duoc ho tro
+  p->affinity_mask = (1U << NCPU) - 1;
 
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -163,6 +165,7 @@ freeproc(struct proc *p)
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
+  p->affinity_mask = 0;
   p->name[0] = 0;
   p->chan = 0;
   p->killed = 0;
@@ -274,6 +277,10 @@ kfork(void)
     return -1;
   }
   np->sz = p->sz;
+  // Tien trinh con ke thua CPU Affinity Mask tu tien trinh cha
+  acquire(&p->lock);
+  np->affinity_mask = p->affinity_mask;
+  release(&p->lock);
 
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
@@ -593,7 +600,55 @@ wakeup(void *chan)
     release(&p->lock);
   }
 }
+// Set CPU affinity mask for a process.
+// pid = 0: current process.
+// Return 0 on success, 1 on failure.
+int
+ksetaffinity(int pid, uint mask)
+{
+  struct proc *p;
 
+  // Check whether the mask contains valid CPU bits.
+  uint valid_mask = (1U << NCPU) - 1;
+
+  if (mask == 0 || (mask & ~valid_mask) != 0)
+    return 1;
+
+  // Negative PID is invalid.
+  if (pid < 0)
+    return 1;
+
+  // PID 0 refers to the current process.
+  if (pid == 0) {
+    p = myproc();
+
+    acquire(&p->lock);
+    p->affinity_mask = mask;
+    release(&p->lock);
+
+    return 0;
+  }
+
+  // Search for the target process.
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+
+    if (p->pid == pid &&
+        p->state != UNUSED &&
+        p->state != ZOMBIE) {
+
+      p->affinity_mask = mask;
+
+      release(&p->lock);
+      return 0;
+    }
+
+    release(&p->lock);
+  }
+
+  // Process not found.
+  return 1;
+}
 // Kill the process with the given pid.
 // The victim won't exit until it tries to return
 // to user space (see usertrap() in trap.c).

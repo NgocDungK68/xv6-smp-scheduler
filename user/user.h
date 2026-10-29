@@ -22,6 +22,7 @@ int chdir(const char *);
 int dup(int);
 int getpid(void);
 int getcpu(void);
+int sched_setaffinity(int pid, unsigned int mask);
 char *sys_sbrk(int, int);
 int pause(int);
 int uptime(void);

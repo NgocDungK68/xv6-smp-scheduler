@@ -22,3 +22,4 @@
 #define SYS_close  21
 #define SYS_sync   22
 #define SYS_getcpu 23
+#define SYS_sched_setaffinity 24
