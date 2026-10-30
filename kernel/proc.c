@@ -633,9 +633,7 @@ ksetaffinity(int pid, uint mask)
   for (p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
 
-    if (p->pid == pid &&
-        p->state != UNUSED &&
-        p->state != ZOMBIE) {
+    if (p->pid == pid && p->state != UNUSED && p->state != ZOMBIE) {
 
       p->affinity_mask = mask;
 
