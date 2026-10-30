@@ -124,7 +124,7 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
-   // Mac dinh cho phep tien trinh chay tren tat ca CPU duoc ho tro
+  // Allow the process to run on all supported CPUs by default.
   p->affinity_mask = (1U << NCPU) - 1;
 
   // Allocate a trapframe page.
@@ -277,7 +277,7 @@ kfork(void)
     return -1;
   }
   np->sz = p->sz;
-  // Tien trinh con ke thua CPU Affinity Mask tu tien trinh cha
+  // Inherit the CPU affinity mask from the parent process.
   acquire(&p->lock);
   np->affinity_mask = p->affinity_mask;
   release(&p->lock);
@@ -602,7 +602,7 @@ wakeup(void *chan)
 }
 // Set CPU affinity mask for a process.
 // pid = 0: current process.
-// Return 0 on success, 1 on failure.
+// Return 0 on success, -1 on failure.
 int
 ksetaffinity(int pid, uint mask)
 {
@@ -612,11 +612,11 @@ ksetaffinity(int pid, uint mask)
   uint valid_mask = (1U << NCPU) - 1;
 
   if (mask == 0 || (mask & ~valid_mask) != 0)
-    return 1;
+    return -1;
 
   // Negative PID is invalid.
   if (pid < 0)
-    return 1;
+    return -1;
 
   // PID 0 refers to the current process.
   if (pid == 0) {
@@ -647,7 +647,7 @@ ksetaffinity(int pid, uint mask)
   }
 
   // Process not found.
-  return 1;
+  return -1;
 }
 // Kill the process with the given pid.
 // The victim won't exit until it tries to return

@@ -152,6 +152,7 @@ UPROGS=\
 	$U/_dorphan\
 	$U/_sync\
 	$U/_getcpu_test\
+	$U/_affinity_test\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

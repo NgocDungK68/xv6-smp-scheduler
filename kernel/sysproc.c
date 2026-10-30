@@ -39,11 +39,11 @@ sys_sched_setaffinity(void)
   int pid;
   int mask;
 
-  // Lay hai tham so tu User Space
+  // Retrieve the two arguments from user space.
   argint(0, &pid);
   argint(1, &mask);
 
-  // Goi ham Kernel de cap nhat CPU Affinity Mask
+  // Update the process CPU affinity mask.
   return ksetaffinity(pid, (uint)mask);
 }
 
