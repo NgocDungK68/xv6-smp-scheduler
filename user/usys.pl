@@ -39,6 +39,8 @@ entry("mkdir");
 entry("chdir");
 entry("dup");
 entry("getpid");
+entry("getcpu");
+entry("sched_setaffinity");
 entry("sbrk");
 entry("pause");
 entry("uptime");

@@ -161,6 +161,8 @@ UPROGS=\
 	$U/_perform\
 	$U/_testws\
 	$U/_testmockws\
+	$U/_getcpu_test\
+	$U/_affinity_test\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

@@ -21,6 +21,31 @@ sys_getpid(void)
 {
   return myproc()->pid;
 }
+// Return the ID of the CPU currently executing this system call.
+uint64
+sys_getcpu(void)
+{
+  push_off();
+  int id = cpuid();
+  pop_off();
+
+  return id;
+}
+
+// System call: set CPU affinity for a process.
+uint64
+sys_sched_setaffinity(void)
+{
+  int pid;
+  int mask;
+
+  // Retrieve the two arguments from user space.
+  argint(0, &pid);
+  argint(1, &mask);
+
+  // Update the process CPU affinity mask.
+  return ksetaffinity(pid, (uint)mask);
+}
 
 uint64
 sys_fork(void)
