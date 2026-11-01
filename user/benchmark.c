@@ -14,6 +14,10 @@ do_work()
   for (int i = 0; i < OPS_PER_PROCESS; i++) {
     sum += (i % 7) * 3;
   }
+
+  // Read the final result so it is not an unused variable.
+  if (sum == -1)
+    printf("benchmark: checksum marker reached\n");
 }
 
 // Hàm chạy kịch bản với số lượng tiến trình cho trước
