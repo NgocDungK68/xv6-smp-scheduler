@@ -28,7 +28,8 @@ OBJS = \
   $K/sysfile.o \
   $K/kernelvec.o \
   $K/plic.o \
-  $K/virtio_disk.o
+  $K/virtio_disk.o \
+  $K/runqueue.o
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -91,6 +92,11 @@ endif
 
 LDFLAGS = -z max-page-size=4096
 
+ifeq ($(RQ_TEST),1)
+OBJS += $K/runqueue_test.o
+CFLAGS += -DRUNQUEUE_TEST
+endif
+
 $K/kernel: $(OBJS) $K/kernel.ld
 	$(LD) $(LDFLAGS) -T $K/kernel.ld -o $K/kernel $(OBJS) 
 	$(OBJDUMP) -S $K/kernel > $K/kernel.asm
@@ -151,6 +157,10 @@ UPROGS=\
 	$U/_forphan\
 	$U/_dorphan\
 	$U/_sync\
+	$U/_benchmark\
+	$U/_perform\
+	$U/_testws\
+	$U/_testmockws\
 	$U/_getcpu_test\
 	$U/_affinity_test\
 

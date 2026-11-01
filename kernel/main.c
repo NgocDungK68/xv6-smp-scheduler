@@ -2,6 +2,7 @@
 #include "param.h"
 #include "memlayout.h"
 #include "riscv.h"
+#include "runqueue.h"
 #include "defs.h"
 
 volatile static int started = 0;
@@ -16,10 +17,14 @@ main()
     printk("\n");
     printk("xv6 kernel is booting\n");
     printk("\n");
-    kinit();            // physical page allocator
-    kvminit();          // create kernel page table
-    kvminithart();      // turn on paging
-    procinit();         // process table
+    kinit();       // physical page allocator
+    kvminit();     // create kernel page table
+    kvminithart(); // turn on paging
+    procinit();    // process table
+    rq_init();     // run queue
+#ifdef RUNQUEUE_TEST
+    rq_selftest(); // run queue test
+#endif
     trapinit();         // trap vectors
     trapinithart();     // install kernel trap vector
     plicinit();         // set up interrupt controller
