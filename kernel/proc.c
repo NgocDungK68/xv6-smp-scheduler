@@ -55,6 +55,7 @@ procinit(void)
   for (p = proc; p < &proc[NPROC]; p++) {
     initlock(&p->lock, "proc");
     p->state = UNUSED;
+    p->rq_cpu = -1;
     p->kstack = KSTACK((int)(p - proc));
   }
 }
@@ -125,6 +126,8 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->rq_cpu = -1;
+
   // Allow the process to run on all supported CPUs by default.
   p->affinity_mask = (1U << NCPU) - 1;
 
@@ -158,6 +161,9 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  if (p->rq_cpu != -1)
+    panic("freeproc: queued");
+
   if (p->trapframe)
     kfree((void *)p->trapframe);
   p->trapframe = 0;
@@ -171,6 +177,7 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->rq_cpu = -1;
   p->state = UNUSED;
 }
 
@@ -229,7 +236,7 @@ userinit(void)
 
   p->cwd = namei("/");
 
-  p->state = RUNNABLE;
+  sched_enqueue(p);
 
   release(&p->lock);
 }
@@ -306,7 +313,7 @@ kfork(void)
   release(&wait_lock);
 
   acquire(&np->lock);
-  np->state = RUNNABLE;
+  sched_enqueue(np);
   release(&np->lock);
 
   return pid;
@@ -595,7 +602,7 @@ wakeup(void *chan)
       // If this waiting process has gotten so far as to actually
       // go to sleep, also set it back to RUNNING.
       if (p->state == SLEEPING) {
-        p->state = RUNNABLE;
+        sched_enqueue(p);
       }
     }
     release(&p->lock);
@@ -665,7 +672,7 @@ kkill(int pid)
       p->killed = 1;
       if (p->state == SLEEPING) {
         // Wake process from sleep().
-        p->state = RUNNABLE;
+        sched_enqueue(p);
       }
       release(&p->lock);
       return 0;

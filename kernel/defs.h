@@ -109,6 +109,7 @@ void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            yield(void);
+void            sched_enqueue(struct proc *p);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

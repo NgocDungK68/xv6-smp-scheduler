@@ -89,6 +89,8 @@ struct proc {
   int xstate;           // Exit status to be returned to parent's wait
   int pid;              // Process ID
   uint affinity_mask;   // Bit i indicates whether CPU i is allowed
+  int rq_cpu;           // Run queue CPU ID, -1 if not queued.
+
   // wait_lock must be held when using this:
   struct proc *parent; // Parent process
 
