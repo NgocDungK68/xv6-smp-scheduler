@@ -110,6 +110,8 @@ void            scheduler(void) __attribute__((noreturn));
 void            sched(void);
 void            yield(void);
 void            sched_enqueue(struct proc *p);
+void            sched_cpu_online(void);
+uint            sched_online_mask(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

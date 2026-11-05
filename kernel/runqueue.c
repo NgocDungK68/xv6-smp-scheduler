@@ -68,27 +68,27 @@ rq_enqueue(int cpu_id, struct proc *p)
   return 0;
 }
 
-struct proc *
-rq_dequeue(int cpu_id)
+int
+rq_dequeue(int cpu_id, struct proc *expected)
 {
-  if (!valid_cpu(cpu_id))
-    return 0;
+  if (!valid_cpu(cpu_id) || expected == 0)
+    return -1;
 
   struct runqueue *rq = &runqueues[cpu_id];
   acquire(&rq->lock);
 
-  if (rq->count == 0) {
+  // Remove only the process previously selected by the caller.
+  if (rq->count == 0 || rq->queue[rq->head] != expected) {
     release(&rq->lock);
-    return 0;
+    return -1;
   }
 
-  struct proc *p = rq->queue[rq->head];
   rq->queue[rq->head] = 0;
   rq->head = (rq->head + 1) % NPROC;
   rq->count--;
 
   release(&rq->lock);
-  return p;
+  return 0;
 }
 
 int

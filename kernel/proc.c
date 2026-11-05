@@ -622,6 +622,10 @@ ksetaffinity(int pid, uint mask)
   if (mask == 0 || (mask & ~valid_mask) != 0)
     return -1;
 
+  // Reject masks that contain no online CPU.
+  if ((mask & sched_online_mask()) == 0)
+    return -1;
+
   // Negative PID is invalid.
   if (pid < 0)
     return -1;
