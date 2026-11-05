@@ -29,7 +29,10 @@ OBJS = \
   $K/kernelvec.o \
   $K/plic.o \
   $K/virtio_disk.o \
-  $K/runqueue.o
+  $K/runqueue.o\
+  $K/worksteal.o \
+  $K/loadbalancing.o\
+  
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -161,8 +164,6 @@ UPROGS=\
 	$U/_perform\
 	$U/_testws\
 	$U/_testmockws\
-	$U/_getcpu_test\
-	$U/_affinity_test\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

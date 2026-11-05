@@ -1,12 +1,13 @@
 
-
+    
+  
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "user/user.h"
 
-#define DEFAULT_WORKERS    4
+#define DEFAULT_WORKERS 4
 #define DEFAULT_ITERATIONS 1000000
-#define MAX_WORKERS        16
+#define MAX_WORKERS 16
 
 static void
 burn_cpu(uint iterations)
@@ -37,8 +38,7 @@ main(int argc, char *argv[])
     iterations = atoi(argv[2]);
 
   if (workers < 1 || workers > MAX_WORKERS) {
-    printf("usage: testws [workers: 1-%d] [iterations: positive]\n",
-           MAX_WORKERS);
+    printf("usage: testws [workers: 1-%d] [iterations: positive]\n", MAX_WORKERS);
     exit(1);
   }
   if (iterations < 1) {
@@ -66,7 +66,9 @@ main(int argc, char *argv[])
     wait(0);
 
   end_ticks = uptime();
-  printf("testws: completed=%d elapsed=%d ticks\n", launched,
-         end_ticks - start_ticks);
+  printf("testws: completed=%d elapsed=%d ticks\n",
+         launched, end_ticks - start_ticks);
   exit(0);
 }
+
+
