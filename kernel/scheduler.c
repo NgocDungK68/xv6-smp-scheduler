@@ -41,7 +41,8 @@ sched_select_cpu(struct proc *p)
   int current = cpuid();
 
   // A yielding process stays local when its affinity still allows it.
-  if (p->state == RUNNING && (eligible & (1U << current)))
+  if ((p->state == RUNNING || p->state == SLEEPING) &&
+      (eligible & (1U << current)))
     return current;
 
   int min_load = NPROC + 1;
