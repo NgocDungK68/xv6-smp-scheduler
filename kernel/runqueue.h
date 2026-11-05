@@ -9,6 +9,7 @@ struct proc;
 // Initialize all run queues.
 void rq_init(void);
 
+int rq_transfer(int src_cpu, int dst_cpu, struct proc *p);
 // Append p; return 0 on success, -1 on failure.
 int rq_enqueue(int cpu_id, struct proc *p);
 

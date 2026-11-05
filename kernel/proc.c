@@ -6,6 +6,12 @@
 #include "proc.h"
 #include "runqueue.h"
 #include "defs.h"
+#include "worksteal.h"
+#include "loadbalancing.h"
+
+extern volatile uint cpu_online_mask;
+extern uint ticks;
+extern struct spinlock tickslock;
 
 struct cpu cpus[NCPU];
 
@@ -107,26 +113,31 @@ allocpid()
 // If found, initialize state required to run in the kernel,
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
+
 static struct proc *
 allocproc(void)
 {
   struct proc *p;
 
+  // Find an UNUSED process slot.
   for (p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
+
     if (p->state == UNUSED) {
       goto found;
     } else {
       release(&p->lock);
     }
   }
+
   return 0;
 
 found:
   p->pid = allocpid();
   p->state = USED;
-  // Allow the process to run on all supported CPUs by default.
-  p->affinity_mask = (1U << NCPU) - 1;
+
+  // Allow process to run on all CPUs by default.
+  p->affinity_mask = (1U << NCPU) - 1U;
 
   // Allocate a trapframe page.
   if ((p->trapframe = (struct trapframe *)kalloc()) == 0) {
@@ -135,16 +146,16 @@ found:
     return 0;
   }
 
-  // An empty user page table.
+  // Create an empty user page table.
   p->pagetable = proc_pagetable(p);
+
   if (p->pagetable == 0) {
     freeproc(p);
     release(&p->lock);
     return 0;
   }
 
-  // Set up new context to start executing at forkret,
-  // which returns to user space.
+  // Set up new context to start executing at forkret.
   memset(&p->context, 0, sizeof(p->context));
   p->context.ra = (uint64)forkret;
   p->context.sp = p->kstack + PGSIZE;
@@ -152,9 +163,6 @@ found:
   return p;
 }
 
-// free a proc structure and the data hanging from it,
-// including user pages.
-// p->lock must be held.
 static void
 freeproc(struct proc *p)
 {
@@ -166,7 +174,6 @@ freeproc(struct proc *p)
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
-  p->affinity_mask = 0;
   p->name[0] = 0;
   p->chan = 0;
   p->killed = 0;
@@ -217,6 +224,48 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
 }
+//enqueue 
+// Caller must hold p->lock.
+static void
+enqueue_runnable_locked(struct proc *p)
+{
+  uint online;
+  uint eligible;
+  uint tried = 0;
+
+  online = __atomic_load_n(&cpu_online_mask, __ATOMIC_ACQUIRE);
+  eligible = p->affinity_mask & online;
+
+  for (int attempt = 0; attempt < NCPU; attempt++) {
+    int best_cpu = -1;
+    int best_length = NPROC + 1;
+
+    for (int cpu = 0; cpu < NCPU; cpu++) {
+      uint bit = 1U << cpu;
+
+      if (!(eligible & bit) || (tried & bit))
+        continue;
+
+      int length = rq_length(cpu);
+
+      if (length >= 0 && length < best_length) {
+        best_length = length;
+        best_cpu = cpu;
+      }
+    }
+
+    if (best_cpu < 0)
+      break;
+
+    tried |= 1U << best_cpu;
+
+    if (rq_enqueue(best_cpu, p) == 0)
+      return;
+  }
+
+  panic("enqueue runnable failed");
+}
+
 
 // Set up first user process.
 void
@@ -228,9 +277,10 @@ userinit(void)
   initproc = p;
 
   p->cwd = namei("/");
-
+  
   p->state = RUNNABLE;
-
+  enqueue_runnable_locked(p);
+  
   release(&p->lock);
 }
 
@@ -262,6 +312,7 @@ growproc(int n)
 int
 kfork(void)
 {
+
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
@@ -277,12 +328,10 @@ kfork(void)
     release(&np->lock);
     return -1;
   }
-  np->sz = p->sz;
-  // Inherit the CPU affinity mask from the parent process.
-  acquire(&p->lock);
-  np->affinity_mask = p->affinity_mask;
-  release(&p->lock);
+np->sz = p->sz;
 
+// Child inherits CPU affinity from parent.
+np->affinity_mask = p->affinity_mask;
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -307,6 +356,7 @@ kfork(void)
 
   acquire(&np->lock);
   np->state = RUNNABLE;
+  enqueue_runnable_locked(np);
   release(&np->lock);
 
   return pid;
@@ -438,52 +488,73 @@ scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
+  int cpu_id = cpuid();
 
   c->proc = 0;
+
   for (;;) {
-    // The most recent process to run may have had interrupts
-    // turned off; enable them to avoid a deadlock if all
-    // processes are waiting. Then turn them back off
-    // to avoid a possible race between an interrupt
-    // and wfi.
     intr_on();
     intr_off();
 
-    int found = 0;
-    for (p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if (p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+    uint online = __atomic_load_n(&cpu_online_mask,
+                                  __ATOMIC_ACQUIRE);
 
-        // Don't re-enable interrupts on release.
-        mycpu()->intena = 0;
+    // Periodic Load Balancing, coordinated by CPU 0.
+    if (cpu_id == 0) {
+      uint now_ticks;
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
-      }
-      release(&p->lock);
+      acquire(&tickslock);
+      now_ticks = ticks;
+      release(&tickslock);
+
+      int migrated = loadbalance_run(cpu_id, online, now_ticks);
+
+if (migrated > 0) {
+  printk("LOAD BALANCE: migrated %d process(es)\n", migrated);
+}
     }
-    if (found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
+
+    // Get process from local Run Queue.
+    p = rq_dequeue(cpu_id);
+
+    // Local queue empty: try Work Stealing.
+    if (p == 0) {
+    worksteal_try(cpu_id, online);
+    p = rq_dequeue(cpu_id);
+    }
+
+    if (p == 0) {
       asm volatile("wfi");
+      continue;
     }
+
+    acquire(&p->lock);
+
+    if (p->state != RUNNABLE) {
+      release(&p->lock);
+      continue;
+    }
+
+    if ((p->affinity_mask & (1U << cpu_id)) == 0) {
+      enqueue_runnable_locked(p);
+      release(&p->lock);
+      continue;
+    }
+
+    p->state = RUNNING;
+    c->proc = p;
+
+    swtch(&c->context, &p->context);
+
+    mycpu()->intena = 0;
+    c->proc = 0;
+
+    release(&p->lock);
   }
 }
-
-// Switch to scheduler.  Must hold only p->lock
-// and have changed proc->state. Saves and restores
-// intena because intena is a property of this
-// kernel thread, not this CPU. It should
-// be proc->intena and proc->noff, but that would
-// break in the few places where a lock is held but
-// there's no process.
+// Switch to scheduler.
+// Must hold only p->lock and have changed p->state.
+// Saves and restores intena.
 void
 sched(void)
 {
@@ -492,36 +563,52 @@ sched(void)
 
   if (!holding(&p->lock))
     panic("sched p->lock");
+
   if (mycpu()->noff != 1)
     panic("sched locks");
+
   if (p->state == RUNNING)
     panic("sched RUNNING");
+
   if (intr_get())
     panic("sched interruptible");
 
   intena = mycpu()->intena;
+
   swtch(&p->context, &mycpu()->context);
+
   mycpu()->intena = intena;
 }
+
 
 // Give up the CPU for one scheduling round.
 void
 yield(void)
 {
   struct proc *p = myproc();
+
   acquire(&p->lock);
+
   p->state = RUNNABLE;
+
+  // Insert process into its Run Queue.
+  enqueue_runnable_locked(p);
+
   sched();
+
   release(&p->lock);
 }
 
-// A fork child's very first scheduling by scheduler()
-// will swtch to forkret.
+
+// A fork child's first scheduling by scheduler()
+// will switch to forkret.
 void
 forkret(void)
 {
   extern char userret[];
+
   static int first = 1;
+
   struct proc *p = myproc();
 
   // Still holding p->lock from scheduler.
@@ -530,56 +617,61 @@ forkret(void)
   if (first) {
     first = 0;
 
-    // File system initialization must be run in the context of a
-    // regular process (e.g., because it calls sleep), and thus cannot
-    // be run from main().
     fsinit(ROOTDEV);
 
-    // We can invoke kexec() now that file system is initialized.
-    // Put the return value (argc) of kexec into a0.
-    p->trapframe->a0 = kexec("/init", (char *[]){"/init", 0});
-    if (p->trapframe->a0 == -1) {
+    p->trapframe->a0 =
+        kexec("/init", (char *[]){"/init", 0});
+
+    if (p->trapframe->a0 == -1)
       panic("exec");
-    }
   }
 
-  // return to user space, mimicing usertrap()'s return.
   prepare_return();
+
   uint64 satp = MAKE_SATP(p->pagetable);
-  uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
+
+  uint64 trampoline_userret =
+      TRAMPOLINE + (userret - trampoline);
+
   ((void (*)(uint64))trampoline_userret)(satp);
 }
 
-// Register current process as waiting for wakeups on chan.
+
+// Register current process as waiting for wakeups.
 void
 sleep_prepare(void *chan)
 {
   struct proc *p = myproc();
 
   acquire(&p->lock);
+
   if (chan == 0)
     panic("sleep_prepare: zero chan");
+
   p->chan = chan;
+
   release(&p->lock);
 }
 
-// Put the thread to sleep.  Assumes sleep_prepare() was called before.
-// If the channel registered by sleep_prepare() has been woken up in
-// the meantime, do not go to sleep, and instead return immediately.
+
+// Put the current process to sleep.
 void
 sleep(void)
 {
   struct proc *p = myproc();
 
   acquire(&p->lock);
+
   if (p->chan != 0) {
     p->state = SLEEPING;
     sched();
   }
+
   release(&p->lock);
 }
 
-// Wake up all processes sleeping on channel chan.
+
+// Wake up all processes sleeping on chan.
 void
 wakeup(void *chan)
 {
@@ -587,18 +679,149 @@ wakeup(void *chan)
 
   for (p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
+
     if (p->chan == chan) {
-      // If the process is waiting for wakeups on this channel,
-      // signal that the wakeup happened by clearing p->chan.
       p->chan = 0;
 
-      // If this waiting process has gotten so far as to actually
-      // go to sleep, also set it back to RUNNING.
       if (p->state == SLEEPING) {
         p->state = RUNNABLE;
+
+        // Add awakened process to a Run Queue.
+        enqueue_runnable_locked(p);
       }
     }
+
     release(&p->lock);
+  }
+}
+
+
+// Kill the process with the given PID.
+int
+kkill(int pid)
+{
+  struct proc *p;
+
+  if (pid == 0)
+    return -1;
+
+  for (p = proc; p < &proc[NPROC]; p++) {
+    acquire(&p->lock);
+
+    if (p->pid == pid) {
+      p->killed = 1;
+
+      if (p->state == SLEEPING) {
+        p->state = RUNNABLE;
+
+        enqueue_runnable_locked(p);
+      }
+
+      release(&p->lock);
+
+      return 0;
+    }
+
+    release(&p->lock);
+  }
+
+  return -1;
+}
+
+
+// Mark process as killed.
+void
+setkilled(struct proc *p)
+{
+  acquire(&p->lock);
+
+  p->killed = 1;
+
+  release(&p->lock);
+}
+
+
+// Check whether process has been killed.
+int
+killed(struct proc *p)
+{
+  int k;
+
+  acquire(&p->lock);
+
+  k = p->killed;
+
+  release(&p->lock);
+
+  return k;
+}
+
+
+// Copy to either user or kernel address.
+int
+either_copyout(int user_dst, uint64 dst,
+               void *src, uint64 len)
+{
+  struct proc *p = myproc();
+
+  if (user_dst) {
+    return copyout(p->pagetable, p->sz,
+                   dst, src, len);
+  } else {
+    memmove((char *)dst, src, len);
+    return 0;
+  }
+}
+
+
+// Copy from either user or kernel address.
+int
+either_copyin(void *dst, int user_src,
+              uint64 src, uint64 len)
+{
+  struct proc *p = myproc();
+
+  if (user_src) {
+    return copyin(p->pagetable, p->sz,
+                  dst, src, len);
+  } else {
+    memmove(dst, (char *)src, len);
+    return 0;
+  }
+}
+
+
+// Print process listing for debugging.
+void
+procdump(void)
+{
+  static char *states[] = {
+    [UNUSED]    = "unused",
+    [USED]      = "used",
+    [SLEEPING]  = "sleep ",
+    [RUNNABLE]  = "runble",
+    [RUNNING]   = "run   ",
+    [ZOMBIE]    = "zombie"
+  };
+
+  struct proc *p;
+  char *state;
+
+  printk("\n");
+
+  for (p = proc; p < &proc[NPROC]; p++) {
+    if (p->state == UNUSED)
+      continue;
+
+    if (p->state >= 0 &&
+        p->state < NELEM(states) &&
+        states[p->state])
+      state = states[p->state];
+    else
+      state = "???";
+
+    printk("%d %s %s", p->pid, state, p->name);
+    printk("\n");
   }
 }
 // Set CPU affinity mask for a process.
@@ -635,9 +858,7 @@ ksetaffinity(int pid, uint mask)
     acquire(&p->lock);
 
     if (p->pid == pid && p->state != UNUSED && p->state != ZOMBIE) {
-
       p->affinity_mask = mask;
-
       release(&p->lock);
       return 0;
     }
@@ -645,113 +866,5 @@ ksetaffinity(int pid, uint mask)
     release(&p->lock);
   }
 
-  // Process not found.
   return -1;
-}
-// Kill the process with the given pid.
-// The victim won't exit until it tries to return
-// to user space (see usertrap() in trap.c).
-int
-kkill(int pid)
-{
-  struct proc *p;
-
-  if (pid == 0)
-    return -1;
-
-  for (p = proc; p < &proc[NPROC]; p++) {
-    acquire(&p->lock);
-    if (p->pid == pid) {
-      p->killed = 1;
-      if (p->state == SLEEPING) {
-        // Wake process from sleep().
-        p->state = RUNNABLE;
-      }
-      release(&p->lock);
-      return 0;
-    }
-    release(&p->lock);
-  }
-  return -1;
-}
-
-void
-setkilled(struct proc *p)
-{
-  acquire(&p->lock);
-  p->killed = 1;
-  release(&p->lock);
-}
-
-int
-killed(struct proc *p)
-{
-  int k;
-
-  acquire(&p->lock);
-  k = p->killed;
-  release(&p->lock);
-  return k;
-}
-
-// Copy to either a user address, or kernel address,
-// depending on usr_dst.
-// Returns 0 on success, -1 on error.
-int
-either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
-{
-  struct proc *p = myproc();
-  if (user_dst) {
-    return copyout(p->pagetable, p->sz, dst, src, len);
-  } else {
-    memmove((char *)dst, src, len);
-    return 0;
-  }
-}
-
-// Copy from either a user address, or kernel address,
-// depending on usr_src.
-// Returns 0 on success, -1 on error.
-int
-either_copyin(void *dst, int user_src, uint64 src, uint64 len)
-{
-  struct proc *p = myproc();
-  if (user_src) {
-    return copyin(p->pagetable, p->sz, dst, src, len);
-  } else {
-    memmove(dst, (char *)src, len);
-    return 0;
-  }
-}
-
-// Print a process listing to console.  For debugging.
-// Runs when user types ^P on console.
-// No lock to avoid wedging a stuck machine further.
-void
-procdump(void)
-{
-  static char *states[] = {
-    // clang-format off
-    [UNUSED]    = "unused",
-    [USED]      = "used",
-    [SLEEPING]  = "sleep ",
-    [RUNNABLE]  = "runble",
-    [RUNNING]   = "run   ",
-    [ZOMBIE]    = "zombie"
-    // clang-format on
-  };
-  struct proc *p;
-  char *state;
-
-  printk("\n");
-  for (p = proc; p < &proc[NPROC]; p++) {
-    if (p->state == UNUSED)
-      continue;
-    if (p->state >= 0 && p->state < NELEM(states) && states[p->state])
-      state = states[p->state];
-    else
-      state = "???";
-    printk("%d %s %s", p->pid, state, p->name);
-    printk("\n");
-  }
 }
