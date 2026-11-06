@@ -80,6 +80,7 @@ void            printkinit(void);
 
 // proc.c
 int ksetaffinity(int pid, uint mask);
+int cpu_allowed(struct proc *p, int cpu_id);
 int             cpuid(void);
 void            kexit(int);
 int             kfork(void);
@@ -104,6 +105,11 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+
+// affinity_test.c
+#ifdef AFFINITY_TEST
+void affinity_selftest(void);
+#endif
 
 // swtch.S
 void            swtch(struct context*, struct context*);

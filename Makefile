@@ -97,6 +97,12 @@ OBJS += $K/runqueue_test.o
 CFLAGS += -DRUNQUEUE_TEST
 endif
 
+# CPU Affinity self-test
+ifeq ($(AFFINITY_TEST),1)
+OBJS += $K/affinity_test.o
+CFLAGS += -DAFFINITY_TEST
+endif
+
 $K/kernel: $(OBJS) $K/kernel.ld
 	$(LD) $(LDFLAGS) -T $K/kernel.ld -o $K/kernel $(OBJS) 
 	$(OBJDUMP) -S $K/kernel > $K/kernel.asm

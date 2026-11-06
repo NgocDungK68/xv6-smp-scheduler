@@ -25,6 +25,11 @@ main()
 #ifdef RUNQUEUE_TEST
     rq_selftest(); // run queue test
 #endif
+
+#ifdef AFFINITY_TEST
+    affinity_selftest();
+#endif
+
     trapinit();         // trap vectors
     trapinithart();     // install kernel trap vector
     plicinit();         // set up interrupt controller
