@@ -14,6 +14,6 @@ jobs:
   macos:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v7
-      - run: brew install riscv64-elf-gcc
-      - run: make kernel/kernel fs.img
+    - uses: actions/checkout@v7
+      - run: brew install riscv64-elf-binutils riscv64-elf-gcc
+      - run: make TOOLPREFIX=riscv64-elf- kernel/kernel fs.img
