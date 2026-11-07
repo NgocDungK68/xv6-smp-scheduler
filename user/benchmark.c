@@ -6,18 +6,16 @@
 #define OPS_PER_PROCESS 10000000
 
 // Hàm giả lập tính toán CPU-bound nặng
-void
-do_work()
-{
-  // Volatile prevents the compiler from removing the computation.
+void do_work() {
   volatile int sum = 0;
-
-  for (int i = 0; i < OPS_PER_PROCESS; i++) {
-    sum += (i % 7) * 3;
+  
+  // Vòng lặp giả lập khối lượng công việc nặng
+  for(int i = 0; i < 10000000; i++) {
+    sum += i;
   }
-
-  // Consume the result to prevent -Wunused-but-set-variable.
-(void)sum;
+  
+  // In ra kết quả để trình biên dịch hiểu biến sum có được sử dụng
+  printf("Worker finished, sum = %d\n", sum); 
 }
 
 
