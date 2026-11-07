@@ -2,8 +2,7 @@
 #include "kernel/param.h"
 #include "user/user.h"
 
-int
-main(void)
+int main(void)
 {
   int passed = 0;
   int total = 3;

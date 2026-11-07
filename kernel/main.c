@@ -13,8 +13,7 @@ volatile uint cpu_online_mask = 0;
 volatile static int started = 0;
 
 // start() jumps here in supervisor mode on all CPUs.
-void
-main()
+void main()
 {
   if (cpuid() == 0) {
     consoleinit();

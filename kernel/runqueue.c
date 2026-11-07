@@ -27,19 +27,14 @@ struct runqueue {
 static struct runqueue runqueues[NCPU];
 static int rq_initialized;
 
-static int
-valid_cpu(int cpu_id)
-{
-  return cpu_id >= 0 && cpu_id < NCPU;
-}
+static int valid_cpu(int cpu_id) { return cpu_id >= 0 && cpu_id < NCPU; }
 
 // ---------------------------------------------------------------------
 // Helpers. The *_locked functions require the queue's lock to be held.
 // ---------------------------------------------------------------------
 
 // Return the offset (0 = head) of p in rq, or -1.
-static int
-rq_find_locked(struct runqueue *rq, struct proc *p)
+static int rq_find_locked(struct runqueue *rq, struct proc *p)
 {
   for (int i = 0; i < rq->count; i++) {
     if (rq->queue[(rq->head + i) % NPROC] == p)
@@ -49,8 +44,7 @@ rq_find_locked(struct runqueue *rq, struct proc *p)
 }
 
 // Remove the entry at `offset`, preserving FIFO order of the others.
-static void
-rq_remove_at_locked(struct runqueue *rq, int offset)
+static void rq_remove_at_locked(struct runqueue *rq, int offset)
 {
   for (int i = offset; i < rq->count - 1; i++) {
     int to = (rq->head + i) % NPROC;
@@ -63,8 +57,7 @@ rq_remove_at_locked(struct runqueue *rq, int offset)
 }
 
 // Append p. Caller must have checked count < NPROC.
-static void
-rq_push_locked(struct runqueue *rq, struct proc *p)
+static void rq_push_locked(struct runqueue *rq, struct proc *p)
 {
   rq->queue[rq->tail] = p;
   rq->tail = (rq->tail + 1) % NPROC;
@@ -72,8 +65,7 @@ rq_push_locked(struct runqueue *rq, struct proc *p)
 }
 
 // Lock two different queues in ascending CPU id order.
-static void
-rq_lock_pair(int a, int b)
+static void rq_lock_pair(int a, int b)
 {
   if (a < b) {
     acquire(&runqueues[a].lock);
@@ -84,8 +76,7 @@ rq_lock_pair(int a, int b)
   }
 }
 
-static void
-rq_unlock_pair(int a, int b)
+static void rq_unlock_pair(int a, int b)
 {
   release(&runqueues[a].lock);
   release(&runqueues[b].lock);
@@ -95,20 +86,14 @@ rq_unlock_pair(int a, int b)
 // Shared helpers for worksteal.c / loadbalancing.c
 // ---------------------------------------------------------------------
 
-uint
-rq_valid_cpu_mask(void)
-{
-  return (1U << NCPU) - 1U;
-}
+uint rq_valid_cpu_mask(void) { return (1U << NCPU) - 1U; }
 
-int
-rq_cpu_online(int cpu_id, uint online_mask)
+int rq_cpu_online(int cpu_id, uint online_mask)
 {
   return valid_cpu(cpu_id) && (online_mask & (1U << cpu_id)) != 0;
 }
 
-int
-rq_proc_can_run_on(struct proc *p, int dst_cpu, int *affinity_rejected)
+int rq_proc_can_run_on(struct proc *p, int dst_cpu, int *affinity_rejected)
 {
   int allowed = 0;
 
@@ -132,8 +117,7 @@ rq_proc_can_run_on(struct proc *p, int dst_cpu, int *affinity_rejected)
 // Public queue API
 // ---------------------------------------------------------------------
 
-void
-rq_init(void)
+void rq_init(void)
 {
   if (rq_initialized)
     return;
@@ -151,8 +135,7 @@ rq_init(void)
   rq_initialized = 1;
 }
 
-int
-rq_enqueue(int cpu_id, struct proc *p)
+int rq_enqueue(int cpu_id, struct proc *p)
 {
   if (!valid_cpu(cpu_id) || p == 0)
     return -1;
@@ -171,8 +154,7 @@ rq_enqueue(int cpu_id, struct proc *p)
   return 0;
 }
 
-struct proc *
-rq_dequeue(int cpu_id)
+struct proc *rq_dequeue(int cpu_id)
 {
   if (!valid_cpu(cpu_id))
     return 0;
@@ -193,8 +175,7 @@ rq_dequeue(int cpu_id)
   return p;
 }
 
-int
-rq_length(int cpu_id)
+int rq_length(int cpu_id)
 {
   if (!valid_cpu(cpu_id))
     return -1;
@@ -206,8 +187,7 @@ rq_length(int cpu_id)
   return count;
 }
 
-int
-rq_load(int cpu_id)
+int rq_load(int cpu_id)
 {
   if (!valid_cpu(cpu_id))
     return -1;
@@ -219,8 +199,7 @@ rq_load(int cpu_id)
   return count + __atomic_load_n(&rq->running, __ATOMIC_ACQUIRE);
 }
 
-void
-rq_set_running(int cpu_id, int running)
+void rq_set_running(int cpu_id, int running)
 {
   if (!valid_cpu(cpu_id))
     return;
@@ -228,8 +207,7 @@ rq_set_running(int cpu_id, int running)
                    __ATOMIC_RELEASE);
 }
 
-struct proc *
-rq_peek_at(int cpu_id, int offset)
+struct proc *rq_peek_at(int cpu_id, int offset)
 {
   if (!valid_cpu(cpu_id) || offset < 0)
     return 0;
@@ -245,8 +223,7 @@ rq_peek_at(int cpu_id, int offset)
   return p;
 }
 
-int
-rq_remove(int cpu_id, struct proc *p)
+int rq_remove(int cpu_id, struct proc *p)
 {
   if (!valid_cpu(cpu_id) || p == 0)
     return -1;
@@ -275,8 +252,7 @@ rq_remove(int cpu_id, struct proc *p)
 // load = queued + running. So a victim that is executing one process and has
 // one more waiting CAN be stolen from, while a victim whose only work is a
 // single queued process (about to be dequeued by its own scheduler) cannot.
-int
-rq_steal_runnable(int src_cpu, int dst_cpu, struct proc *p)
+int rq_steal_runnable(int src_cpu, int dst_cpu, struct proc *p)
 {
   struct runqueue *src;
   struct runqueue *dst;
@@ -319,8 +295,7 @@ rq_steal_runnable(int src_cpu, int dst_cpu, struct proc *p)
 // Transfer a process from source CPU to destination CPU (load balancing).
 // The destination may already contain processes; only a full queue or a
 // duplicate is rejected.
-int
-rq_transfer(int src_cpu, int dst_cpu, struct proc *p)
+int rq_transfer(int src_cpu, int dst_cpu, struct proc *p)
 {
   int acquired_p_lock = 0;
   int ret = -1;

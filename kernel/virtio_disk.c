@@ -58,8 +58,7 @@ static struct disk {
 
 } disk;
 
-void
-virtio_disk_init(void)
+void virtio_disk_init(void)
 {
   uint32 status = 0;
 
@@ -153,8 +152,7 @@ virtio_disk_init(void)
 }
 
 // find a free descriptor, mark it non-free, return its index.
-static int
-alloc_desc()
+static int alloc_desc()
 {
   for (int i = 0; i < NUM; i++) {
     if (disk.free[i]) {
@@ -166,8 +164,7 @@ alloc_desc()
 }
 
 // mark a descriptor as free.
-static void
-free_desc(int i)
+static void free_desc(int i)
 {
   if (i >= NUM)
     panic("free_desc 1");
@@ -182,8 +179,7 @@ free_desc(int i)
 }
 
 // free a chain of descriptors.
-static void
-free_chain(int i)
+static void free_chain(int i)
 {
   while (1) {
     int flag = disk.desc[i].flags;
@@ -198,8 +194,7 @@ free_chain(int i)
 
 // allocate three descriptors (they need not be contiguous).
 // disk transfers always use three descriptors.
-static int
-alloc3_desc(int *idx)
+static int alloc3_desc(int *idx)
 {
   for (int i = 0; i < 3; i++) {
     idx[i] = alloc_desc();
@@ -212,8 +207,7 @@ alloc3_desc(int *idx)
   return 0;
 }
 
-void
-virtio_disk_rw(struct buf *b, int write)
+void virtio_disk_rw(struct buf *b, int write)
 {
   uint64 sector = b->blockno * (BSIZE / 512);
 
@@ -297,8 +291,7 @@ virtio_disk_rw(struct buf *b, int write)
   release(&disk.vdisk_lock);
 }
 
-void
-virtio_disk_intr()
+void virtio_disk_intr()
 {
   acquire(&disk.vdisk_lock);
 

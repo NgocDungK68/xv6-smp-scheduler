@@ -13,8 +13,7 @@
 static volatile unsigned sink;
 
 // One unit = 1M iterations of a cheap LCG.
-static void
-burn(int units)
+static void burn(int units)
 {
   unsigned x = 1;
 
@@ -24,8 +23,7 @@ burn(int units)
   sink = x;
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
   int n = argc > 1 ? atoi(argv[1]) : 4;
   int work = argc > 2 ? atoi(argv[2]) : 50;

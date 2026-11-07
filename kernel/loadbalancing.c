@@ -17,8 +17,8 @@ static struct loadbalance_stats lb_stats;
 
 // Return the first FIFO-ordered process in src_cpu that is runnable and
 // allowed to execute on dst_cpu. rq_transfer() will revalidate before moving.
-static struct proc *
-find_eligible(int src_cpu, int dst_cpu, uint *affinity_skips)
+static struct proc *find_eligible(int src_cpu, int dst_cpu,
+                                  uint *affinity_skips)
 {
   int length = rq_length(src_cpu);
 
@@ -40,8 +40,7 @@ find_eligible(int src_cpu, int dst_cpu, uint *affinity_skips)
 }
 
 // Initialize the load balancer. Safe to call more than once.
-void
-loadbalance_init(void)
+void loadbalance_init(void)
 {
   if (lb_initialized)
     return;
@@ -60,8 +59,7 @@ loadbalance_init(void)
   lb_initialized = 1;
 }
 
-int
-loadbalance_run(int coordinator_cpu, uint online_mask, uint now_ticks)
+int loadbalance_run(int coordinator_cpu, uint online_mask, uint now_ticks)
 {
   int loads[NCPU];
   int best_src = -1;
@@ -170,8 +168,7 @@ loadbalance_run(int coordinator_cpu, uint online_mask, uint now_ticks)
   return 0;
 }
 
-int
-loadbalance_get_stats(struct loadbalance_stats *out)
+int loadbalance_get_stats(struct loadbalance_stats *out)
 {
   if (!lb_initialized || out == 0)
     return -1;
@@ -182,8 +179,7 @@ loadbalance_get_stats(struct loadbalance_stats *out)
   return 0;
 }
 
-void
-loadbalance_reset_stats(void)
+void loadbalance_reset_stats(void)
 {
   if (!lb_initialized)
     return;

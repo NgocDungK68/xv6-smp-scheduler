@@ -31,8 +31,7 @@
 // interrupts, e.g. by printk and to echo input
 // characters.
 //
-void
-consputc(int c)
+void consputc(int c)
 {
   if (c == BACKSPACE) {
     // if the user typed backspace, overwrite with a space.
@@ -59,8 +58,7 @@ struct {
 // user write() system calls to the console go here.
 // uses sleep() and UART interrupts.
 //
-int
-consolewrite(int user_src, uint64 src, int n)
+int consolewrite(int user_src, uint64 src, int n)
 {
   char buf[32]; // move batches from user space to uart.
   int i = 0;
@@ -84,8 +82,7 @@ consolewrite(int user_src, uint64 src, int n)
 // user_dst indicates whether dst is a user
 // or kernel address.
 //
-int
-consoleread(int user_dst, uint64 dst, int n)
+int consoleread(int user_dst, uint64 dst, int n)
 {
   uint target;
   int c;
@@ -143,8 +140,7 @@ consoleread(int user_dst, uint64 dst, int n)
 // do erase/kill processing, append to cons.buf,
 // wake up consoleread() if a whole line has arrived.
 //
-void
-consoleintr(int c)
+void consoleintr(int c)
 {
   acquire(&cons.lock);
 
@@ -189,8 +185,7 @@ consoleintr(int c)
   release(&cons.lock);
 }
 
-void
-consoleinit(void)
+void consoleinit(void)
 {
   initlock(&cons.lock, "cons");
 

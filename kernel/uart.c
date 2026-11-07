@@ -45,8 +45,7 @@ static int tx_chan; // &tx_chan is the "wait channel"
 extern volatile int panicking; // from printk.c
 extern volatile int panicked;  // from printk.c
 
-void
-uartinit(void)
+void uartinit(void)
 {
   // disable interrupts.
   WriteReg(IER, 0x00);
@@ -76,8 +75,7 @@ uartinit(void)
 // transmit buf[] to the uart. it blocks if the
 // uart is busy, so it cannot be called from
 // interrupts, only from write() system calls.
-void
-uartwrite(char buf[], int n)
+void uartwrite(char buf[], int n)
 {
   acquiresleep(&tx_lock);
 
@@ -99,8 +97,7 @@ uartwrite(char buf[], int n)
 // interrupts, for use by kernel printk() and
 // to echo characters. it spins waiting for the uart's
 // output register to be empty.
-void
-uartputc_sync(int c)
+void uartputc_sync(int c)
 {
   if (panicking == 0)
     push_off();
@@ -121,8 +118,7 @@ uartputc_sync(int c)
 
 // try to read one input character from the UART.
 // return -1 if none is waiting.
-static int
-uartgetc(void)
+static int uartgetc(void)
 {
   // is input ready?
   if (ReadReg(LSR) & LSR_RX_READY) {
@@ -135,8 +131,7 @@ uartgetc(void)
 // handle a uart interrupt, raised because input has
 // arrived, or the uart is ready for more output, or
 // both. called from devintr().
-void
-uartintr(void)
+void uartintr(void)
 {
   ReadReg(ISR); // acknowledge the interrupt
 

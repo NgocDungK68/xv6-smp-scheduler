@@ -7,8 +7,7 @@
 
 // Hàm giả lập tính toán CPU-bound nặng
 // user/benchmark.c
-void
-do_work()
+void do_work()
 {
   volatile int sum = 0;
 
@@ -19,13 +18,12 @@ do_work()
   printf("Worker finished, sum = %d\n", sum);
 }
 
-  // In ra kết quả để trình biên dịch hiểu biến sum có được sử dụng
-  printf("Worker finished, sum = %d\n", sum);
+// In ra kết quả để trình biên dịch hiểu biến sum có được sử dụng
+printf("Worker finished, sum = %d\n", sum);
 }
 
 // Hàm chạy kịch bản với số lượng tiến trình cho trước
-void
-run_test(int num_procs)
+void run_test(int num_procs)
 {
   int pids[8];
   int start_ticks, end_ticks, total_ticks;
@@ -67,8 +65,7 @@ run_test(int num_procs)
   printf(" %d\t\t| %d\t\t| %d\n", num_procs, total_ticks, kops_per_sec);
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
   printf("\n=== TUAN 1: BASELINE STOCK XV6 (GLOBAL LOCK) ===\n");
   printf(" Cores (Procs)\t| Time (Ticks)\t| KOps/sec\n");

@@ -35,8 +35,7 @@ struct spinlock wait_lock;
 // Allocate a page for each process's kernel stack.
 // Map it high in memory, followed by an invalid
 // guard page.
-void
-proc_mapstacks(pagetable_t kpgtbl)
+void proc_mapstacks(pagetable_t kpgtbl)
 {
   struct proc *p;
 
@@ -50,8 +49,7 @@ proc_mapstacks(pagetable_t kpgtbl)
 }
 
 // initialize the proc table.
-void
-procinit(void)
+void procinit(void)
 {
   struct proc *p;
 
@@ -74,8 +72,7 @@ procinit(void)
 // Must be called with interrupts disabled,
 // to prevent race with process being moved
 // to a different CPU.
-int
-cpuid()
+int cpuid()
 {
   int id = r_tp();
   return id;
@@ -83,8 +80,7 @@ cpuid()
 
 // Return this CPU's cpu struct.
 // Interrupts must be disabled.
-struct cpu *
-mycpu(void)
+struct cpu *mycpu(void)
 {
   int id = cpuid();
   struct cpu *c = &cpus[id];
@@ -92,8 +88,7 @@ mycpu(void)
 }
 
 // Return the current struct proc *, or zero if none.
-struct proc *
-myproc(void)
+struct proc *myproc(void)
 {
   push_off();
   struct cpu *c = mycpu();
@@ -102,8 +97,7 @@ myproc(void)
   return p;
 }
 
-int
-allocpid()
+int allocpid()
 {
   int pid;
 
@@ -120,8 +114,7 @@ allocpid()
 // and return with p->lock held.
 // If there are no free procs, or a memory allocation fails, return 0.
 
-static struct proc *
-allocproc(void)
+static struct proc *allocproc(void)
 {
   struct proc *p;
 
@@ -169,8 +162,7 @@ found:
   return p;
 }
 
-static void
-freeproc(struct proc *p)
+static void freeproc(struct proc *p)
 {
   if (p->trapframe)
     kfree((void *)p->trapframe);
@@ -189,8 +181,7 @@ freeproc(struct proc *p)
 
 // Create a user page table for a given process, with no user memory,
 // but with trampoline and trapframe pages.
-pagetable_t
-proc_pagetable(struct proc *p)
+pagetable_t proc_pagetable(struct proc *p)
 {
   pagetable_t pagetable;
 
@@ -223,8 +214,7 @@ proc_pagetable(struct proc *p)
 
 // Free a process's page table, and free the
 // physical memory it refers to.
-void
-proc_freepagetable(pagetable_t pagetable, uint64 sz)
+void proc_freepagetable(pagetable_t pagetable, uint64 sz)
 {
   uvmunmap(pagetable, TRAMPOLINE, 1, 0);
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
@@ -238,8 +228,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
 //
 // Caller must hold p->lock. That also guarantees interrupts are off, so
 // cpuid() is stable.
-static void
-enqueue_runnable_locked(struct proc *p)
+static void enqueue_runnable_locked(struct proc *p)
 {
   uint online;
   uint eligible;
@@ -283,8 +272,7 @@ enqueue_runnable_locked(struct proc *p)
 }
 
 // Set up first user process.
-void
-userinit(void)
+void userinit(void)
 {
   struct proc *p;
 
@@ -301,8 +289,7 @@ userinit(void)
 
 // Grow or shrink user memory by n bytes.
 // Return 0 on success, -1 on failure.
-int
-growproc(int n)
+int growproc(int n)
 {
   uint64 sz;
   struct proc *p = myproc();
@@ -324,8 +311,7 @@ growproc(int n)
 
 // Create a new process, copying the parent.
 // Sets up child kernel stack to return as if from fork() system call.
-int
-kfork(void)
+int kfork(void)
 {
 
   int i, pid;
@@ -386,8 +372,7 @@ kfork(void)
 
 // Pass p's abandoned children to init.
 // Caller must hold wait_lock.
-void
-reparent(struct proc *p)
+void reparent(struct proc *p)
 {
   struct proc *pp;
 
@@ -402,8 +387,7 @@ reparent(struct proc *p)
 // Exit the current process.  Does not return.
 // An exited process remains in the zombie state
 // until its parent calls wait().
-void
-kexit(int status)
+void kexit(int status)
 {
   struct proc *p = myproc();
 
@@ -446,8 +430,7 @@ kexit(int status)
 
 // Wait for a child process to exit and return its pid.
 // Return -1 if this process has no children.
-int
-kwait(uint64 addr)
+int kwait(uint64 addr)
 {
   struct proc *pp;
   int havekids, pid;
@@ -505,8 +488,7 @@ kwait(uint64 addr)
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
-void
-scheduler(void)
+void scheduler(void)
 {
   struct proc *p;
   struct cpu *c = mycpu();
@@ -586,8 +568,7 @@ scheduler(void)
 // Switch to scheduler.
 // Must hold only p->lock and have changed p->state.
 // Saves and restores intena.
-void
-sched(void)
+void sched(void)
 {
   int intena;
   struct proc *p = myproc();
@@ -612,8 +593,7 @@ sched(void)
 }
 
 // Give up the CPU for one scheduling round.
-void
-yield(void)
+void yield(void)
 {
   struct proc *p = myproc();
 
@@ -635,8 +615,7 @@ yield(void)
 
 // A fork child's first scheduling by scheduler()
 // will switch to forkret.
-void
-forkret(void)
+void forkret(void)
 {
   extern char userret[];
 
@@ -668,8 +647,7 @@ forkret(void)
 }
 
 // Register current process as waiting for wakeups.
-void
-sleep_prepare(void *chan)
+void sleep_prepare(void *chan)
 {
   struct proc *p = myproc();
 
@@ -684,8 +662,7 @@ sleep_prepare(void *chan)
 }
 
 // Put the current process to sleep.
-void
-sleep(void)
+void sleep(void)
 {
   struct proc *p = myproc();
 
@@ -700,8 +677,7 @@ sleep(void)
 }
 
 // Wake up all processes sleeping on chan.
-void
-wakeup(void *chan)
+void wakeup(void *chan)
 {
   struct proc *p;
 
@@ -724,8 +700,7 @@ wakeup(void *chan)
 }
 
 // Kill the process with the given PID.
-int
-kkill(int pid)
+int kkill(int pid)
 {
   struct proc *p;
 
@@ -756,8 +731,7 @@ kkill(int pid)
 }
 
 // Mark process as killed.
-void
-setkilled(struct proc *p)
+void setkilled(struct proc *p)
 {
   acquire(&p->lock);
 
@@ -767,8 +741,7 @@ setkilled(struct proc *p)
 }
 
 // Check whether process has been killed.
-int
-killed(struct proc *p)
+int killed(struct proc *p)
 {
   int k;
 
@@ -782,8 +755,7 @@ killed(struct proc *p)
 }
 
 // Copy to either user or kernel address.
-int
-either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
+int either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
 {
   struct proc *p = myproc();
 
@@ -796,8 +768,7 @@ either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
 }
 
 // Copy from either user or kernel address.
-int
-either_copyin(void *dst, int user_src, uint64 src, uint64 len)
+int either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
   struct proc *p = myproc();
 
@@ -810,8 +781,7 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 }
 
 // Print process listing for debugging.
-void
-procdump(void)
+void procdump(void)
 {
   static char *states[] = {
     [UNUSED] = "unused",   [USED] = "used",      [SLEEPING] = "sleep ",
@@ -838,8 +808,7 @@ procdump(void)
 // Set CPU affinity mask for a process.
 // pid = 0: current process.
 // Return 0 on success, -1 on failure.
-int
-ksetaffinity(int pid, uint mask)
+int ksetaffinity(int pid, uint mask)
 {
   struct proc *p;
 

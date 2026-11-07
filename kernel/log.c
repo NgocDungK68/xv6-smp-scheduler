@@ -51,8 +51,7 @@ struct log log;
 static void recover_from_log(void);
 static void commit();
 
-void
-initlog(int dev, struct superblock *sb)
+void initlog(int dev, struct superblock *sb)
 {
   if (sizeof(struct logheader) >= BSIZE)
     panic("initlog: too big logheader");
@@ -64,8 +63,7 @@ initlog(int dev, struct superblock *sb)
 }
 
 // Copy committed blocks from log to their home location
-static void
-install_trans(int recovering)
+static void install_trans(int recovering)
 {
   int tail;
 
@@ -85,8 +83,7 @@ install_trans(int recovering)
 }
 
 // Read the log header from disk into the in-memory log header
-static void
-read_head(void)
+static void read_head(void)
 {
   struct buf *buf = bread(log.dev, log.start);
   struct logheader *lh = (struct logheader *)(buf->data);
@@ -101,8 +98,7 @@ read_head(void)
 // Write in-memory log header to disk.
 // This is the true point at which the
 // current transaction commits.
-static void
-write_head(void)
+static void write_head(void)
 {
   struct buf *buf = bread(log.dev, log.start);
   struct logheader *hb = (struct logheader *)(buf->data);
@@ -115,8 +111,7 @@ write_head(void)
   brelse(buf);
 }
 
-static void
-recover_from_log(void)
+static void recover_from_log(void)
 {
   read_head();
   install_trans(1); // if committed, copy from log to disk
@@ -125,8 +120,7 @@ recover_from_log(void)
 }
 
 // called at the start of each FS system call.
-void
-begin_op(void)
+void begin_op(void)
 {
   acquire(&log.lock);
   while (1) {
@@ -151,8 +145,7 @@ begin_op(void)
 
 // called at the end of each FS system call.
 // commits if this was the last outstanding operation.
-void
-end_op(void)
+void end_op(void)
 {
   int do_commit = 0;
 
@@ -184,8 +177,7 @@ end_op(void)
 }
 
 // Copy modified blocks from cache to log.
-static void
-write_log(void)
+static void write_log(void)
 {
   int tail;
 
@@ -199,8 +191,7 @@ write_log(void)
   }
 }
 
-static void
-commit()
+static void commit()
 {
   if (log.lh.n > 0) {
     write_log();      // Write modified blocks from cache to log
@@ -220,8 +211,7 @@ commit()
 //   modify bp->data[]
 //   log_write(bp)
 //   brelse(bp)
-void
-log_write(struct buf *b)
+void log_write(struct buf *b)
 {
   int i;
 
@@ -243,8 +233,7 @@ log_write(struct buf *b)
   release(&log.lock);
 }
 
-uint64
-sys_sync(void)
+uint64 sys_sync(void)
 {
   acquire(&log.lock);
   if (log.committing || log.outstanding > 0) {

@@ -53,15 +53,13 @@ static struct worksteal_state ws_states[MOCK_MAX_CPUS];
 static int tests_passed;
 static int tests_total;
 
-static int
-valid_cpu(const struct mock_system *system, int cpu_id)
+static int valid_cpu(const struct mock_system *system, int cpu_id)
 {
   return system != 0 && cpu_id >= 0 && cpu_id < system->ncpu &&
          cpu_id < MOCK_MAX_CPUS;
 }
 
-static void
-mock_system_init(struct mock_system *system, int ncpu)
+static void mock_system_init(struct mock_system *system, int ncpu)
 {
   int cpu;
   int i;
@@ -88,8 +86,7 @@ mock_system_init(struct mock_system *system, int ncpu)
   }
 }
 
-static void
-worksteal_init(struct worksteal_state *state, int cpu_id, int ncpu)
+static void worksteal_init(struct worksteal_state *state, int cpu_id, int ncpu)
 {
   if (state == 0)
     return;
@@ -100,23 +97,20 @@ worksteal_init(struct worksteal_state *state, int cpu_id, int ncpu)
   state->next_victim = (cpu_id + 1) % ncpu;
 }
 
-static void
-init_all_worksteal_states(void)
+static void init_all_worksteal_states(void)
 {
   int cpu;
   for (cpu = 0; cpu < MOCK_MAX_CPUS; cpu++)
     worksteal_init(&ws_states[cpu], cpu, MOCK_MAX_CPUS);
 }
 
-static void
-reset_test(void)
+static void reset_test(void)
 {
   mock_system_init(&system_state, MOCK_MAX_CPUS);
   init_all_worksteal_states();
 }
 
-static struct mock_task
-make_task(int id, uint affinity_mask)
+static struct mock_task make_task(int id, uint affinity_mask)
 {
   struct mock_task task;
   task.id = id;
@@ -125,17 +119,15 @@ make_task(int id, uint affinity_mask)
   return task;
 }
 
-static int
-mock_queue_len(const struct mock_system *system, int cpu_id)
+static int mock_queue_len(const struct mock_system *system, int cpu_id)
 {
   if (!valid_cpu(system, cpu_id))
     return -1;
   return system->queues[cpu_id].count;
 }
 
-static int
-mock_queue_enqueue(struct mock_system *system, int cpu_id,
-                   struct mock_task task)
+static int mock_queue_enqueue(struct mock_system *system, int cpu_id,
+                              struct mock_task task)
 {
   struct mock_queue *queue;
 
@@ -150,9 +142,8 @@ mock_queue_enqueue(struct mock_system *system, int cpu_id,
   return 1;
 }
 
-static int
-mock_queue_remove_at(struct mock_system *system, int cpu_id, int index,
-                     struct mock_task *task_out)
+static int mock_queue_remove_at(struct mock_system *system, int cpu_id,
+                                int index, struct mock_task *task_out)
 {
   struct mock_queue *queue;
   int i;
@@ -170,8 +161,7 @@ mock_queue_remove_at(struct mock_system *system, int cpu_id, int index,
   return 1;
 }
 
-static int
-mock_total_queued(const struct mock_system *system)
+static int mock_total_queued(const struct mock_system *system)
 {
   int cpu;
   int total = 0;
@@ -183,8 +173,7 @@ mock_total_queued(const struct mock_system *system)
   return total;
 }
 
-static int
-mock_count_task_id(const struct mock_system *system, int task_id)
+static int mock_count_task_id(const struct mock_system *system, int task_id)
 {
   int cpu;
   int i;
@@ -202,8 +191,7 @@ mock_count_task_id(const struct mock_system *system, int task_id)
 }
 
 /* A task may be stolen only if the destination CPU is in its affinity mask. */
-static int
-mock_task_allowed_on(const struct mock_task *task, int cpu_id)
+static int mock_task_allowed_on(const struct mock_task *task, int cpu_id)
 {
   if (task == 0 || cpu_id < 0 || cpu_id >= MOCK_MAX_CPUS)
     return 0;
@@ -211,9 +199,8 @@ mock_task_allowed_on(const struct mock_task *task, int cpu_id)
 }
 
 /* Count tasks in a source queue that are eligible for the destination CPU. */
-static int
-mock_eligible_count(int thief_cpu, int victim_cpu,
-                    const struct mock_system *system)
+static int mock_eligible_count(int thief_cpu, int victim_cpu,
+                               const struct mock_system *system)
 {
   int i;
   int count = 0;
@@ -234,8 +221,8 @@ mock_eligible_count(int thief_cpu, int victim_cpu,
  * sequential; a real kernel implementation must protect source/destination
  * queues and process state with the agreed locking protocol.
  */
-static int
-mock_steal_one(int thief_cpu, int victim_cpu, struct mock_system *system)
+static int mock_steal_one(int thief_cpu, int victim_cpu,
+                          struct mock_system *system)
 {
   struct mock_task task;
   int i;
@@ -284,8 +271,8 @@ mock_steal_one(int thief_cpu, int victim_cpu, struct mock_system *system)
  * - Break equal-load ties using a per-CPU round-robin cursor.
  * - Try each other CPU at most once.
  */
-static int
-mock_worksteal(struct mock_system *system, int thief_cpu, int *victim_out)
+static int mock_worksteal(struct mock_system *system, int thief_cpu,
+                          int *victim_out)
 {
   int tried[MOCK_MAX_CPUS];
   int i;
@@ -344,8 +331,7 @@ mock_worksteal(struct mock_system *system, int thief_cpu, int *victim_out)
   return 0;
 }
 
-static void
-check(int condition, const char *name)
+static void check(int condition, const char *name)
 {
   tests_total++;
   if (condition) {
@@ -356,8 +342,7 @@ check(int condition, const char *name)
   }
 }
 
-static void
-test_empty_queues(void)
+static void test_empty_queues(void)
 {
   int victim = 99;
   reset_test();
@@ -366,8 +351,7 @@ test_empty_queues(void)
         "empty queues");
 }
 
-static void
-test_choose_most_loaded_eligible_victim(void)
+static void test_choose_most_loaded_eligible_victim(void)
 {
   int i;
   int victim = -1;
@@ -383,8 +367,7 @@ test_choose_most_loaded_eligible_victim(void)
         "choose most-loaded eligible victim");
 }
 
-static void
-test_affinity_filter_and_task_integrity(void)
+static void test_affinity_filter_and_task_integrity(void)
 {
   int victim = -1;
   struct mock_task cpu2_only;
@@ -407,8 +390,7 @@ test_affinity_filter_and_task_integrity(void)
         "affinity filtering and task integrity");
 }
 
-static void
-test_no_affinity_compatible_task(void)
+static void test_no_affinity_compatible_task(void)
 {
   int victim = 77;
   reset_test();
@@ -422,8 +404,7 @@ test_no_affinity_compatible_task(void)
         "no affinity-compatible task");
 }
 
-static void
-test_zero_affinity_mask(void)
+static void test_zero_affinity_mask(void)
 {
   int victim = -1;
   reset_test();
@@ -435,8 +416,7 @@ test_zero_affinity_mask(void)
         "zero affinity mask");
 }
 
-static void
-test_invalid_destination_cpu(void)
+static void test_invalid_destination_cpu(void)
 {
   int victim = 123;
   reset_test();
@@ -446,8 +426,7 @@ test_invalid_destination_cpu(void)
         "invalid destination CPU");
 }
 
-static void
-test_nonempty_destination(void)
+static void test_nonempty_destination(void)
 {
   int victim = -1;
   reset_test();
@@ -460,8 +439,7 @@ test_nonempty_destination(void)
         "non-empty destination queue");
 }
 
-static void
-test_invalid_source_cpu(void)
+static void test_invalid_source_cpu(void)
 {
   reset_test();
   check(mock_steal_one(0, MOCK_MAX_CPUS, &system_state) == 0 &&
@@ -469,8 +447,7 @@ test_invalid_source_cpu(void)
         "invalid source CPU");
 }
 
-static void
-test_round_robin_rotation(void)
+static void test_round_robin_rotation(void)
 {
   int first_start;
   reset_test();
@@ -480,8 +457,7 @@ test_round_robin_rotation(void)
         "round-robin search rotation");
 }
 
-int
-main(void)
+int main(void)
 {
   tests_passed = 0;
   tests_total = 0;

@@ -14,8 +14,7 @@ static uint next_victim[NCPU];
 static struct worksteal_stats ws_stats[NCPU];
 
 // Count runnable processes in src_cpu that are eligible to run on dst_cpu.
-static int
-count_eligible(int src_cpu, int dst_cpu, uint *affinity_skips)
+static int count_eligible(int src_cpu, int dst_cpu, uint *affinity_skips)
 {
   int length;
   int count = 0;
@@ -43,8 +42,7 @@ count_eligible(int src_cpu, int dst_cpu, uint *affinity_skips)
 }
 
 // Initialize Work Stealing module. Safe to call more than once.
-void
-worksteal_init(void)
+void worksteal_init(void)
 {
   if (ws_initialized)
     return;
@@ -71,8 +69,7 @@ worksteal_init(void)
 //   1  : Successfully stole one process.
 //   0  : No process was stolen.
 //  -1  : Invalid input or module not initialized.
-int
-worksteal_try(int thief_cpu, uint online_mask)
+int worksteal_try(int thief_cpu, uint online_mask)
 {
   int order[NCPU];
   int eligible[NCPU];
@@ -223,8 +220,7 @@ worksteal_try(int thief_cpu, uint online_mask)
 }
 
 // Get Work Stealing statistics for one CPU.
-int
-worksteal_get_stats(int thief_cpu, struct worksteal_stats *out)
+int worksteal_get_stats(int thief_cpu, struct worksteal_stats *out)
 {
   if (!ws_initialized || out == 0 || thief_cpu < 0 || thief_cpu >= NCPU)
     return -1;
@@ -237,8 +233,7 @@ worksteal_get_stats(int thief_cpu, struct worksteal_stats *out)
 }
 
 // Reset statistics for all CPUs.
-void
-worksteal_reset_stats(void)
+void worksteal_reset_stats(void)
 {
   if (!ws_initialized)
     return;

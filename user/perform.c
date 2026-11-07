@@ -4,16 +4,14 @@
 
 #define OPS 30000000 // ~270M tổng giá trị sum, không tràn int 32-bit
 
-static void
-do_work(void)
+static void do_work(void)
 {
   volatile int sum = 0;
   for (int i = 0; i < OPS; i++)
     sum += (i % 7) * 3;
 }
 
-static int
-run_test(int n)
+static int run_test(int n)
 {
   int t0 = uptime();
   for (int i = 0; i < n; i++) {
@@ -33,8 +31,7 @@ run_test(int n)
   return t ? t : 1;
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
   char *label = argc > 1 ? argv[1] : "run";
   int maxp = argc > 2 ? atoi(argv[2]) : 8;

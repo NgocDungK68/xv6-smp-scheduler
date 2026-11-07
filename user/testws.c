@@ -16,8 +16,7 @@ struct worker_stats {
   int sampled_changes;
 };
 
-static void
-sample_cpu(struct worker_stats *stats)
+static void sample_cpu(struct worker_stats *stats)
 {
   int cpu = getcpu();
 
@@ -34,8 +33,7 @@ sample_cpu(struct worker_stats *stats)
   stats->cpu_mask |= (1U << cpu);
 }
 
-static void
-burn_cpu(uint iterations, struct worker_stats *stats)
+static void burn_cpu(uint iterations, struct worker_stats *stats)
 {
   volatile uint x = (uint)getpid();
 
@@ -59,8 +57,7 @@ burn_cpu(uint iterations, struct worker_stats *stats)
     stats->sampled_changes++;
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
   int workers = DEFAULT_WORKERS;
   int iterations = DEFAULT_ITERATIONS;

@@ -18,8 +18,7 @@
 
 // Fetch the nth word-sized system call argument as a file descriptor
 // and return both the descriptor and the corresponding struct file.
-static int
-argfd(int n, int *pfd, struct file **pf)
+static int argfd(int n, int *pfd, struct file **pf)
 {
   int fd;
   struct file *f;
@@ -36,8 +35,7 @@ argfd(int n, int *pfd, struct file **pf)
 
 // Allocate a file descriptor for the given file.
 // Takes over file reference from caller on success.
-static int
-fdalloc(struct file *f)
+static int fdalloc(struct file *f)
 {
   int fd;
   struct proc *p = myproc();
@@ -51,8 +49,7 @@ fdalloc(struct file *f)
   return -1;
 }
 
-uint64
-sys_dup(void)
+uint64 sys_dup(void)
 {
   struct file *f;
   int fd;
@@ -65,8 +62,7 @@ sys_dup(void)
   return fd;
 }
 
-uint64
-sys_read(void)
+uint64 sys_read(void)
 {
   struct file *f;
   int n;
@@ -79,8 +75,7 @@ sys_read(void)
   return fileread(f, p, n);
 }
 
-uint64
-sys_write(void)
+uint64 sys_write(void)
 {
   struct file *f;
   int n;
@@ -94,8 +89,7 @@ sys_write(void)
   return filewrite(f, p, n);
 }
 
-uint64
-sys_close(void)
+uint64 sys_close(void)
 {
   int fd;
   struct file *f;
@@ -107,8 +101,7 @@ sys_close(void)
   return 0;
 }
 
-uint64
-sys_fstat(void)
+uint64 sys_fstat(void)
 {
   struct file *f;
   uint64 st; // user pointer to struct stat
@@ -120,8 +113,7 @@ sys_fstat(void)
 }
 
 // Create the path new as a link to the same inode as old.
-uint64
-sys_link(void)
+uint64 sys_link(void)
 {
   char name[DIRSIZ], new[MAXPATH], old[MAXPATH];
   struct inode *dp, *ip;
@@ -183,8 +175,7 @@ bad:
 }
 
 // Is the directory dp empty except for "." and ".." ?
-static int
-isdirempty(struct inode *dp)
+static int isdirempty(struct inode *dp)
 {
   int off;
   struct dirent de;
@@ -198,8 +189,7 @@ isdirempty(struct inode *dp)
   return 1;
 }
 
-uint64
-sys_unlink(void)
+uint64 sys_unlink(void)
 {
   struct inode *ip, *dp;
   struct dirent de;
@@ -255,8 +245,7 @@ bad:
   return -1;
 }
 
-static struct inode *
-create(char *path, short type, short major, short minor)
+static struct inode *create(char *path, short type, short major, short minor)
 {
   struct inode *ip, *dp;
   char name[DIRSIZ];
@@ -325,8 +314,7 @@ fail:
   return 0;
 }
 
-uint64
-sys_open(void)
+uint64 sys_open(void)
 {
   char path[MAXPATH];
   int fd, omode;
@@ -394,8 +382,7 @@ sys_open(void)
   return fd;
 }
 
-uint64
-sys_mkdir(void)
+uint64 sys_mkdir(void)
 {
   char path[MAXPATH];
   struct inode *ip;
@@ -410,8 +397,7 @@ sys_mkdir(void)
   return 0;
 }
 
-uint64
-sys_mknod(void)
+uint64 sys_mknod(void)
 {
   struct inode *ip;
   char path[MAXPATH];
@@ -430,8 +416,7 @@ sys_mknod(void)
   return 0;
 }
 
-uint64
-sys_chdir(void)
+uint64 sys_chdir(void)
 {
   char path[MAXPATH];
   struct inode *ip;
@@ -455,8 +440,7 @@ sys_chdir(void)
   return 0;
 }
 
-uint64
-sys_exec(void)
+uint64 sys_exec(void)
 {
   char path[MAXPATH], *argv[MAXARG];
   int i;
@@ -498,8 +482,7 @@ bad:
   return -1;
 }
 
-uint64
-sys_pipe(void)
+uint64 sys_pipe(void)
 {
   uint64 fdarray; // user pointer to array of two integers
   struct file *rf, *wf;

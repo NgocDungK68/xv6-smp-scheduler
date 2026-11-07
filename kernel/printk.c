@@ -25,8 +25,7 @@ static struct {
 
 static char digits[] = "0123456789abcdef";
 
-static void
-printint(long long xx, int base, int sign)
+static void printint(long long xx, int base, int sign)
 {
   char buf[20];
   int i;
@@ -49,8 +48,7 @@ printint(long long xx, int base, int sign)
     consputc(buf[i]);
 }
 
-static void
-printptr(uint64 x)
+static void printptr(uint64 x)
 {
   int i;
   consputc('0');
@@ -60,8 +58,7 @@ printptr(uint64 x)
 }
 
 // Print to the console.
-int
-printk(char *fmt, ...)
+int printk(char *fmt, ...)
 {
   va_list ap;
   int i, cx, c0, c1, c2;
@@ -134,8 +131,7 @@ printk(char *fmt, ...)
   return 0;
 }
 
-void
-panic(char *s)
+void panic(char *s)
 {
   panicking = 1;
   printk("panic: ");
@@ -145,8 +141,4 @@ panic(char *s)
     ;
 }
 
-void
-printkinit(void)
-{
-  initlock(&pr.lock, "pr");
-}
+void printkinit(void) { initlock(&pr.lock, "pr"); }

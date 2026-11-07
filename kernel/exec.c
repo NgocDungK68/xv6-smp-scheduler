@@ -10,8 +10,7 @@
 static int loadseg(pde_t *, uint64, struct inode *, uint, uint);
 
 // map ELF permissions to PTE permission bits.
-int
-flags2perm(int flags)
+int flags2perm(int flags)
 {
   int perm = 0;
   if (flags & 0x1)
@@ -24,8 +23,7 @@ flags2perm(int flags)
 //
 // the implementation of the exec() system call
 //
-int
-kexec(char *path, char **argv)
+int kexec(char *path, char **argv)
 {
   char *s, *last;
   int i, off;
@@ -155,9 +153,8 @@ bad:
 // va must be page-aligned
 // and the pages from va to va+sz must already be mapped.
 // Returns 0 on success, -1 on failure.
-static int
-loadseg(pagetable_t pagetable, uint64 va, struct inode *ip, uint offset,
-        uint sz)
+static int loadseg(pagetable_t pagetable, uint64 va, struct inode *ip,
+                   uint offset, uint sz)
 {
   uint i, n;
   uint64 pa;

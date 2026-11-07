@@ -11,8 +11,7 @@ void timerinit();
 __attribute__((aligned(16))) char stack0[4096 * NCPU];
 
 // entry.S jumps here in machine mode on stack0.
-void
-start()
+void start()
 {
   // set M Previous Privilege mode to Supervisor, for mret.
   unsigned long x = r_mstatus();
@@ -52,8 +51,7 @@ start()
 }
 
 // ask each hart to generate timer interrupts.
-void
-timerinit()
+void timerinit()
 {
   // enable the sstc extension (i.e. stimecmp).
   w_menvcfg(r_menvcfg() | MENVCFG_STCE);
