@@ -9,12 +9,17 @@
 void
 do_work()
 {
-  // Từ khóa volatile ép CPU phải thực sự tính toán, ngăn trình biên dịch tối ưu hóa (bỏ qua) vòng lặp này
+  // Volatile prevents the compiler from removing the computation.
   volatile int sum = 0;
+
   for (int i = 0; i < OPS_PER_PROCESS; i++) {
     sum += (i % 7) * 3;
   }
+
+  // Read the final result to avoid -Wunused-but-set-variable.
+  (void)sum;
 }
+
 
 // Hàm chạy kịch bản với số lượng tiến trình cho trước
 void
