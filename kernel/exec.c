@@ -40,7 +40,7 @@ kexec(char *path, char **argv)
 
   // Open the executable file.
   if ((ip = namei(path)) == 0) {
-  printk("EXEC ERROR: cannot find file %s\n", path);
+    printk("EXEC ERROR: cannot find file %s\n", path);
     end_op();
     return -1;
   }
@@ -141,8 +141,7 @@ kexec(char *path, char **argv)
   return argc; // this ends up in a0, the first argument to main(argc, argv)
 
 bad:
-  printk("EXEC ERROR: loading %s failed, sz=%p\n",
-         path, (void *)sz);
+  printk("EXEC ERROR: loading %s failed, sz=%p\n", path, (void *)sz);
   if (pagetable)
     proc_freepagetable(pagetable, sz);
   if (ip) {

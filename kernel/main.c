@@ -71,11 +71,7 @@ main()
     plicinithart();
 
     // Mark this CPU online after initialization.
-    __atomic_fetch_or(
-        &cpu_online_mask,
-        1U << cpuid(),
-        __ATOMIC_RELEASE
-    );
+    __atomic_fetch_or(&cpu_online_mask, 1U << cpuid(), __ATOMIC_RELEASE);
   }
 
   scheduler();

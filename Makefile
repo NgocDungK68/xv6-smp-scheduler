@@ -164,6 +164,7 @@ UPROGS=\
 	$U/_perform\
 	$U/_testws\
 	$U/_testmockws\
+	$U/_schedtest\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

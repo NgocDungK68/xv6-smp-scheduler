@@ -16,8 +16,6 @@ struct context {
   uint64 s9;
   uint64 s10;
   uint64 s11;
-  
-  
 };
 
 // Per-CPU state.
@@ -82,8 +80,6 @@ enum procstate { UNUSED, USED, SLEEPING, RUNNABLE, RUNNING, ZOMBIE };
 
 // Per-process state
 struct proc {
-
-
 
   struct spinlock lock;
 

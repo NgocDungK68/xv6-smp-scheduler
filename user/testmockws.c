@@ -19,9 +19,9 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 
-#define MOCK_MAX_CPUS 4
+#define MOCK_MAX_CPUS  4
 #define MOCK_MAX_TASKS 32
-#define ALL_CPU_MASK ((1U << MOCK_MAX_CPUS) - 1U)
+#define ALL_CPU_MASK   ((1U << MOCK_MAX_CPUS) - 1U)
 
 struct mock_task {
   int id;
@@ -93,8 +93,7 @@ worksteal_init(struct worksteal_state *state, int cpu_id, int ncpu)
 {
   if (state == 0)
     return;
-  if (ncpu < 1 || ncpu > MOCK_MAX_CPUS ||
-      cpu_id < 0 || cpu_id >= ncpu) {
+  if (ncpu < 1 || ncpu > MOCK_MAX_CPUS || cpu_id < 0 || cpu_id >= ncpu) {
     state->next_victim = 0;
     return;
   }
@@ -362,8 +361,8 @@ test_empty_queues(void)
 {
   int victim = 99;
   reset_test();
-  check(mock_worksteal(&system_state, 0, &victim) == 0 &&
-        victim == -1 && mock_total_queued(&system_state) == 0,
+  check(mock_worksteal(&system_state, 0, &victim) == 0 && victim == -1 &&
+          mock_total_queued(&system_state) == 0,
         "empty queues");
 }
 
@@ -373,16 +372,14 @@ test_choose_most_loaded_eligible_victim(void)
   int i;
   int victim = -1;
   reset_test();
-  (void)mock_queue_enqueue(&system_state, 1,
-                           make_task(10, ALL_CPU_MASK));
+  (void)mock_queue_enqueue(&system_state, 1, make_task(10, ALL_CPU_MASK));
   for (i = 0; i < 3; i++)
-    (void)mock_queue_enqueue(&system_state, 2,
-                             make_task(20 + i, ALL_CPU_MASK));
+    (void)mock_queue_enqueue(&system_state, 2, make_task(20 + i, ALL_CPU_MASK));
 
-  check(mock_worksteal(&system_state, 0, &victim) == 1 &&
-        victim == 2 && mock_queue_len(&system_state, 0) == 1 &&
-        mock_queue_len(&system_state, 2) == 2 &&
-        mock_total_queued(&system_state) == 4,
+  check(mock_worksteal(&system_state, 0, &victim) == 1 && victim == 2 &&
+          mock_queue_len(&system_state, 0) == 1 &&
+          mock_queue_len(&system_state, 2) == 2 &&
+          mock_total_queued(&system_state) == 4,
         "choose most-loaded eligible victim");
 }
 
@@ -399,14 +396,14 @@ test_affinity_filter_and_task_integrity(void)
   (void)mock_queue_enqueue(&system_state, 2, cpu2_only);
   (void)mock_queue_enqueue(&system_state, 2, cpu0_allowed);
 
-  check(mock_worksteal(&system_state, 0, &victim) == 1 &&
-        victim == 2 && mock_queue_len(&system_state, 0) == 1 &&
-        mock_queue_len(&system_state, 2) == 1 &&
-        system_state.queues[0].items[0].id == 32 &&
-        system_state.queues[2].items[0].id == 31 &&
-        mock_count_task_id(&system_state, 31) == 1 &&
-        mock_count_task_id(&system_state, 32) == 1 &&
-        mock_total_queued(&system_state) == 2,
+  check(mock_worksteal(&system_state, 0, &victim) == 1 && victim == 2 &&
+          mock_queue_len(&system_state, 0) == 1 &&
+          mock_queue_len(&system_state, 2) == 1 &&
+          system_state.queues[0].items[0].id == 32 &&
+          system_state.queues[2].items[0].id == 31 &&
+          mock_count_task_id(&system_state, 31) == 1 &&
+          mock_count_task_id(&system_state, 32) == 1 &&
+          mock_total_queued(&system_state) == 2,
         "affinity filtering and task integrity");
 }
 
@@ -415,14 +412,13 @@ test_no_affinity_compatible_task(void)
 {
   int victim = 77;
   reset_test();
-  (void)mock_queue_enqueue(&system_state, 2,
-                           make_task(40, 1U << 2));
+  (void)mock_queue_enqueue(&system_state, 2, make_task(40, 1U << 2));
 
-  check(mock_worksteal(&system_state, 0, &victim) == 0 &&
-        victim == -1 && mock_queue_len(&system_state, 2) == 1 &&
-        mock_queue_len(&system_state, 0) == 0 &&
-        system_state.steal_attempts == 0 &&
-        mock_total_queued(&system_state) == 1,
+  check(mock_worksteal(&system_state, 0, &victim) == 0 && victim == -1 &&
+          mock_queue_len(&system_state, 2) == 1 &&
+          mock_queue_len(&system_state, 0) == 0 &&
+          system_state.steal_attempts == 0 &&
+          mock_total_queued(&system_state) == 1,
         "no affinity-compatible task");
 }
 
@@ -434,8 +430,8 @@ test_zero_affinity_mask(void)
   (void)mock_queue_enqueue(&system_state, 1, make_task(50, 0));
 
   check(mock_worksteal(&system_state, 0, &victim) == 0 &&
-        mock_queue_len(&system_state, 1) == 1 &&
-        mock_queue_len(&system_state, 0) == 0,
+          mock_queue_len(&system_state, 1) == 1 &&
+          mock_queue_len(&system_state, 0) == 0,
         "zero affinity mask");
 }
 
@@ -444,10 +440,9 @@ test_invalid_destination_cpu(void)
 {
   int victim = 123;
   reset_test();
-  check(mock_worksteal(&system_state, -1, &victim) == 0 &&
-        victim == -1 &&
-        mock_worksteal(&system_state, MOCK_MAX_CPUS, &victim) == 0 &&
-        system_state.steal_attempts == 0,
+  check(mock_worksteal(&system_state, -1, &victim) == 0 && victim == -1 &&
+          mock_worksteal(&system_state, MOCK_MAX_CPUS, &victim) == 0 &&
+          system_state.steal_attempts == 0,
         "invalid destination CPU");
 }
 
@@ -456,14 +451,12 @@ test_nonempty_destination(void)
 {
   int victim = -1;
   reset_test();
-  (void)mock_queue_enqueue(&system_state, 0,
-                           make_task(60, ALL_CPU_MASK));
-  (void)mock_queue_enqueue(&system_state, 2,
-                           make_task(61, ALL_CPU_MASK));
+  (void)mock_queue_enqueue(&system_state, 0, make_task(60, ALL_CPU_MASK));
+  (void)mock_queue_enqueue(&system_state, 2, make_task(61, ALL_CPU_MASK));
 
-  check(mock_worksteal(&system_state, 0, &victim) == 0 &&
-        victim == -1 && system_state.steal_attempts == 0 &&
-        mock_total_queued(&system_state) == 2,
+  check(mock_worksteal(&system_state, 0, &victim) == 0 && victim == -1 &&
+          system_state.steal_attempts == 0 &&
+          mock_total_queued(&system_state) == 2,
         "non-empty destination queue");
 }
 
@@ -472,7 +465,7 @@ test_invalid_source_cpu(void)
 {
   reset_test();
   check(mock_steal_one(0, MOCK_MAX_CPUS, &system_state) == 0 &&
-        system_state.steal_attempts == 0,
+          system_state.steal_attempts == 0,
         "invalid source CPU");
 }
 

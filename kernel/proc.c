@@ -224,7 +224,7 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
 }
-//enqueue 
+//enqueue
 // Caller must hold p->lock.
 static void
 enqueue_runnable_locked(struct proc *p)
@@ -266,7 +266,6 @@ enqueue_runnable_locked(struct proc *p)
   panic("enqueue runnable failed");
 }
 
-
 // Set up first user process.
 void
 userinit(void)
@@ -277,10 +276,10 @@ userinit(void)
   initproc = p;
 
   p->cwd = namei("/");
-  
+
   p->state = RUNNABLE;
   enqueue_runnable_locked(p);
-  
+
   release(&p->lock);
 }
 
@@ -328,10 +327,10 @@ kfork(void)
     release(&np->lock);
     return -1;
   }
-np->sz = p->sz;
+  np->sz = p->sz;
 
-// Child inherits CPU affinity from parent.
-np->affinity_mask = p->affinity_mask;
+  // Child inherits CPU affinity from parent.
+  np->affinity_mask = p->affinity_mask;
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -496,8 +495,7 @@ scheduler(void)
     intr_on();
     intr_off();
 
-    uint online = __atomic_load_n(&cpu_online_mask,
-                                  __ATOMIC_ACQUIRE);
+    uint online = __atomic_load_n(&cpu_online_mask, __ATOMIC_ACQUIRE);
 
     // Periodic Load Balancing, coordinated by CPU 0.
     if (cpu_id == 0) {
@@ -509,9 +507,9 @@ scheduler(void)
 
       int migrated = loadbalance_run(cpu_id, online, now_ticks);
 
-if (migrated > 0) {
-  printk("LOAD BALANCE: migrated %d process(es)\n", migrated);
-}
+      if (migrated > 0) {
+        printk("LOAD BALANCE: migrated %d process(es)\n", migrated);
+      }
     }
 
     // Get process from local Run Queue.
@@ -519,8 +517,8 @@ if (migrated > 0) {
 
     // Local queue empty: try Work Stealing.
     if (p == 0) {
-    worksteal_try(cpu_id, online);
-    p = rq_dequeue(cpu_id);
+      worksteal_try(cpu_id, online);
+      p = rq_dequeue(cpu_id);
     }
 
     if (p == 0) {
@@ -580,7 +578,6 @@ sched(void)
   mycpu()->intena = intena;
 }
 
-
 // Give up the CPU for one scheduling round.
 void
 yield(void)
@@ -598,7 +595,6 @@ yield(void)
 
   release(&p->lock);
 }
-
 
 // A fork child's first scheduling by scheduler()
 // will switch to forkret.
@@ -619,8 +615,7 @@ forkret(void)
 
     fsinit(ROOTDEV);
 
-    p->trapframe->a0 =
-        kexec("/init", (char *[]){"/init", 0});
+    p->trapframe->a0 = kexec("/init", (char *[]){"/init", 0});
 
     if (p->trapframe->a0 == -1)
       panic("exec");
@@ -630,12 +625,10 @@ forkret(void)
 
   uint64 satp = MAKE_SATP(p->pagetable);
 
-  uint64 trampoline_userret =
-      TRAMPOLINE + (userret - trampoline);
+  uint64 trampoline_userret = TRAMPOLINE + (userret - trampoline);
 
   ((void (*)(uint64))trampoline_userret)(satp);
 }
-
 
 // Register current process as waiting for wakeups.
 void
@@ -653,7 +646,6 @@ sleep_prepare(void *chan)
   release(&p->lock);
 }
 
-
 // Put the current process to sleep.
 void
 sleep(void)
@@ -669,7 +661,6 @@ sleep(void)
 
   release(&p->lock);
 }
-
 
 // Wake up all processes sleeping on chan.
 void
@@ -694,7 +685,6 @@ wakeup(void *chan)
     release(&p->lock);
   }
 }
-
 
 // Kill the process with the given PID.
 int
@@ -728,7 +718,6 @@ kkill(int pid)
   return -1;
 }
 
-
 // Mark process as killed.
 void
 setkilled(struct proc *p)
@@ -739,7 +728,6 @@ setkilled(struct proc *p)
 
   release(&p->lock);
 }
-
 
 // Check whether process has been killed.
 int
@@ -756,53 +744,41 @@ killed(struct proc *p)
   return k;
 }
 
-
 // Copy to either user or kernel address.
 int
-either_copyout(int user_dst, uint64 dst,
-               void *src, uint64 len)
+either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
 {
   struct proc *p = myproc();
 
   if (user_dst) {
-    return copyout(p->pagetable, p->sz,
-                   dst, src, len);
+    return copyout(p->pagetable, p->sz, dst, src, len);
   } else {
     memmove((char *)dst, src, len);
     return 0;
   }
 }
 
-
 // Copy from either user or kernel address.
 int
-either_copyin(void *dst, int user_src,
-              uint64 src, uint64 len)
+either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
   struct proc *p = myproc();
 
   if (user_src) {
-    return copyin(p->pagetable, p->sz,
-                  dst, src, len);
+    return copyin(p->pagetable, p->sz, dst, src, len);
   } else {
     memmove(dst, (char *)src, len);
     return 0;
   }
 }
 
-
 // Print process listing for debugging.
 void
 procdump(void)
 {
   static char *states[] = {
-    [UNUSED]    = "unused",
-    [USED]      = "used",
-    [SLEEPING]  = "sleep ",
-    [RUNNABLE]  = "runble",
-    [RUNNING]   = "run   ",
-    [ZOMBIE]    = "zombie"
-  };
+    [UNUSED] = "unused",   [USED] = "used",      [SLEEPING] = "sleep ",
+    [RUNNABLE] = "runble", [RUNNING] = "run   ", [ZOMBIE] = "zombie"};
 
   struct proc *p;
   char *state;
@@ -813,9 +789,7 @@ procdump(void)
     if (p->state == UNUSED)
       continue;
 
-    if (p->state >= 0 &&
-        p->state < NELEM(states) &&
-        states[p->state])
+    if (p->state >= 0 && p->state < NELEM(states) && states[p->state])
       state = states[p->state];
     else
       state = "???";
