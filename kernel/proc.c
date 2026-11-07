@@ -11,7 +11,6 @@
 
 extern volatile uint cpu_online_mask;
 extern uint ticks;
-extern struct spinlock tickslock;
 
 struct cpu cpus[NCPU];
 
@@ -63,6 +62,13 @@ procinit(void)
     p->state = UNUSED;
     p->kstack = KSTACK((int)(p - proc));
   }
+
+  // Run queues, work stealing and load balancing must be initialised before
+  // userinit() enqueues the first process. These init functions are
+  // idempotent, so it is harmless if main.c also calls them.
+  rq_init();
+  worksteal_init();
+  loadbalance_init();
 }
 
 // Must be called with interrupts disabled,
@@ -224,32 +230,40 @@ proc_freepagetable(pagetable_t pagetable, uint64 sz)
   uvmunmap(pagetable, TRAPFRAME, 1, 0);
   uvmfree(pagetable, sz);
 }
-//enqueue
-// Caller must hold p->lock.
+// Put a RUNNABLE process on the least-loaded CPU that its affinity allows.
+// load = queued processes + (1 if the CPU is executing one), so an idle CPU
+// beats a busy one even when both have empty queues.
+// Ties go to the first CPU in order starting at the current one (keeps a
+// process local when nothing is gained by moving it).
+//
+// Caller must hold p->lock. That also guarantees interrupts are off, so
+// cpuid() is stable.
 static void
 enqueue_runnable_locked(struct proc *p)
 {
   uint online;
   uint eligible;
   uint tried = 0;
+  int self = cpuid();
 
   online = __atomic_load_n(&cpu_online_mask, __ATOMIC_ACQUIRE);
   eligible = p->affinity_mask & online;
 
   for (int attempt = 0; attempt < NCPU; attempt++) {
     int best_cpu = -1;
-    int best_length = NPROC + 1;
+    int best_load = NPROC + 2;
 
-    for (int cpu = 0; cpu < NCPU; cpu++) {
+    for (int step = 0; step < NCPU; step++) {
+      int cpu = (self + step) % NCPU;
       uint bit = 1U << cpu;
 
       if (!(eligible & bit) || (tried & bit))
         continue;
 
-      int length = rq_length(cpu);
+      int load = rq_load(cpu);
 
-      if (length >= 0 && length < best_length) {
-        best_length = length;
+      if (load >= 0 && load < best_load) {
+        best_load = load;
         best_cpu = cpu;
       }
     }
@@ -263,6 +277,8 @@ enqueue_runnable_locked(struct proc *p)
       return;
   }
 
+  // ksetaffinity() only accepts masks that contain an online CPU, so this is
+  // an internal invariant violation (or every candidate queue is full).
   panic("enqueue runnable failed");
 }
 
@@ -315,6 +331,13 @@ kfork(void)
   int i, pid;
   struct proc *np;
   struct proc *p = myproc();
+  uint affinity;
+
+  // affinity_mask is protected by p->lock. Read it before allocproc() so we
+  // never hold two proc locks at once.
+  acquire(&p->lock);
+  affinity = p->affinity_mask;
+  release(&p->lock);
 
   // Allocate process.
   if ((np = allocproc()) == 0) {
@@ -330,7 +353,7 @@ kfork(void)
   np->sz = p->sz;
 
   // Child inherits CPU affinity from parent.
-  np->affinity_mask = p->affinity_mask;
+  np->affinity_mask = affinity;
   // copy saved user registers.
   *(np->trapframe) = *(p->trapframe);
 
@@ -488,6 +511,7 @@ scheduler(void)
   struct proc *p;
   struct cpu *c = mycpu();
   int cpu_id = cpuid();
+  uint last_lb_tick = ~0U; // CPU 0: tick of the last loadbalance_run() call
 
   c->proc = 0;
 
@@ -499,16 +523,21 @@ scheduler(void)
 
     // Periodic Load Balancing, coordinated by CPU 0.
     if (cpu_id == 0) {
-      uint now_ticks;
+      uint now_ticks = __atomic_load_n(&ticks, __ATOMIC_RELAXED);
 
-      acquire(&tickslock);
-      now_ticks = ticks;
-      release(&tickslock);
+      // loadbalance_run() enforces LB_INTERVAL_TICKS itself; calling it at
+      // most once per tick keeps an idle CPU 0 from hammering lb_lock.
+      if (now_ticks != last_lb_tick) {
+        int migrated;
 
-      int migrated = loadbalance_run(cpu_id, online, now_ticks);
-
-      if (migrated > 0) {
-        printk("LOAD BALANCE: migrated %d process(es)\n", migrated);
+        last_lb_tick = now_ticks;
+        migrated = loadbalance_run(cpu_id, online, now_ticks);
+#if LB_VERBOSE
+        if (migrated > 0)
+          printk("LOAD BALANCE: migrated %d process(es)\n", migrated);
+#else
+        (void)migrated;
+#endif
       }
     }
 
@@ -533,6 +562,7 @@ scheduler(void)
       continue;
     }
 
+    // Affinity changed while p was queued here: send it to an allowed CPU.
     if ((p->affinity_mask & (1U << cpu_id)) == 0) {
       enqueue_runnable_locked(p);
       release(&p->lock);
@@ -541,9 +571,12 @@ scheduler(void)
 
     p->state = RUNNING;
     c->proc = p;
+    rq_set_running(cpu_id, 1);
 
     swtch(&c->context, &p->context);
 
+    // p is done running on this CPU for now.
+    rq_set_running(cpu_id, 0);
     mycpu()->intena = 0;
     c->proc = 0;
 
@@ -587,6 +620,10 @@ yield(void)
   acquire(&p->lock);
 
   p->state = RUNNABLE;
+
+  // p is leaving this CPU: do not count it in this CPU's load when choosing
+  // a queue. (cpuid() is safe: acquire() above disabled interrupts.)
+  rq_set_running(cpuid(), 0);
 
   // Insert process into its Run Queue.
   enqueue_runnable_locked(p);
@@ -806,10 +843,12 @@ ksetaffinity(int pid, uint mask)
 {
   struct proc *p;
 
-  // Check whether the mask contains valid CPU bits.
+  // Check whether the mask contains valid CPU bits, and at least one CPU
+  // that is actually online. Otherwise the process could never be queued.
   uint valid_mask = (1U << NCPU) - 1;
+  uint online = __atomic_load_n(&cpu_online_mask, __ATOMIC_ACQUIRE);
 
-  if (mask == 0 || (mask & ~valid_mask) != 0)
+  if (mask == 0 || (mask & ~valid_mask) != 0 || (mask & online) == 0)
     return -1;
 
   // Negative PID is invalid.

@@ -79,6 +79,13 @@ void            panic(char*) __attribute__((noreturn));
 void            printkinit(void);
 
 // proc.c
+struct proc;
+int rq_proc_can_run_on(struct proc *p, int dst_cpu, int *affinity_rejected);
+uint rq_valid_cpu_mask(void);
+int rq_cpu_online(int cpu_id, uint online_mask);
+int rq_load(int cpu_id);
+int rq_steal_runnable(int src_cpu, int dst_cpu, struct proc *p);
+
 int ksetaffinity(int pid, uint mask);
 int             cpuid(void);
 void            kexit(int);
