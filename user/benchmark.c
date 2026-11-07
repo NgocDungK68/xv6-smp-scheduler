@@ -14,7 +14,6 @@ void do_work()
   for (int i = 0; i < 10000000; i++) {
     sum += i;
   }
-
 }
 
 // In ra kết quả để trình biên dịch hiểu biến sum có được sử dụng
