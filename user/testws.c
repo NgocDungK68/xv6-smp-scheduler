@@ -75,15 +75,13 @@ main(int argc, char *argv[])
   if (argc > 2)
     iterations = atoi(argv[2]);
 
-  if (workers < 1 || workers > MAX_WORKERS ||
-      iterations < 1) {
+  if (workers < 1 || workers > MAX_WORKERS || iterations < 1) {
     printf("usage: testws [workers: 1-%d] [iterations: positive]\n",
            MAX_WORKERS);
     exit(1);
   }
 
-  printf("testws: workers=%d iterations=%d\n",
-         workers, iterations);
+  printf("testws: workers=%d iterations=%d\n", workers, iterations);
 
   start_ticks = uptime();
 
@@ -144,10 +142,7 @@ main(int argc, char *argv[])
 
     printf("PID=%d first_cpu=%d last_cpu=%d "
            "cpu_mask=0x%x changes=%d\n",
-           stats.pid,
-           stats.first_cpu,
-           stats.last_cpu,
-           stats.cpu_mask,
+           stats.pid, stats.first_cpu, stats.last_cpu, stats.cpu_mask,
            stats.sampled_changes);
   }
 
