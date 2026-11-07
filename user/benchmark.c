@@ -15,7 +15,6 @@ void do_work()
     sum += i;
   }
 
-  printf("Worker finished, sum = %d\n", sum);
 }
 
 // In ra kết quả để trình biên dịch hiểu biến sum có được sử dụng
