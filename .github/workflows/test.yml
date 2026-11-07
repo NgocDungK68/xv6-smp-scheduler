@@ -17,3 +17,4 @@ jobs:
     - uses: actions/checkout@v7
       - run: brew install riscv64-elf-binutils riscv64-elf-gcc
       - run: make TOOLPREFIX=riscv64-elf- kernel/kernel fs.img
+      - run: brew install riscv64-elf-binutils riscv64-elf-gcc qemu
