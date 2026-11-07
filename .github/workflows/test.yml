@@ -8,10 +8,11 @@ linux:
     - uses: actions/checkout@v7
 
     - name: Install dependencies
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y gcc-riscv64-linux-gnu qemu-system-riscv clang-format-21 bc
-        sudo ln -sf /usr/bin/clang-format-21 /usr/local/bin/clang-format
+- run: sudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu qemu-system-riscv clang-format-21 bc
+- run: sudo ln -sf /usr/bin/clang-format-21 /usr/local/bin/clang-format
+- run: clang-format --version
+
+
 
     - name: Check formatter version
       run: clang-format --version
