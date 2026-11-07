@@ -17,8 +17,7 @@ do_work()
   }
 
   // Consume the result to prevent -Wunused-but-set-variable.
-  if (sum == -1)
-    printf("Unexpected checksum: %d\n", sum);
+(void)sum;
 }
 
 
