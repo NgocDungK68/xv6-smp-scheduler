@@ -8,8 +8,7 @@
 // Hàm giả lập tính toán CPU-bound nặng
 // user/benchmark.c
 
-void
-do_work()
+void do_work()
 {
   volatile int sum = 0;
   (void)sum;
