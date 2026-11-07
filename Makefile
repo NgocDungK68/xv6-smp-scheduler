@@ -160,7 +160,6 @@ UPROGS=\
 	$U/_forphan\
 	$U/_dorphan\
 	$U/_sync\
-	$U/_benchmark\
 	$U/_perform\
 	$U/_testws\
 	$U/_testmockws\
