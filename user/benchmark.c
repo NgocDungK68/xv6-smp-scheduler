@@ -16,8 +16,9 @@ do_work()
     sum += (i % 7) * 3;
   }
 
-  // Read the final result to avoid -Wunused-but-set-variable.
-  (void)sum;
+  // Consume the result to prevent -Wunused-but-set-variable.
+  if (sum == -1)
+    printf("Unexpected checksum: %d\n", sum);
 }
 
 
