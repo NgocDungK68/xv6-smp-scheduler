@@ -1,5 +1,5 @@
 SortIncludes: Never
-ReflowComments: False
+ReflowComments: Never
 
 BreakBeforeBraces: Custom
 BraceWrapping:
