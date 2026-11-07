@@ -8,58 +8,10 @@
 #include "defs.h"
 #include "worksteal.h"
 
-// Run Queue API declaration.
-int rq_steal_runnable(int src_cpu, int dst_cpu, struct proc *p);
-
 static struct spinlock ws_lock;
 static int ws_initialized;
 static uint next_victim[NCPU];
 static struct worksteal_stats ws_stats[NCPU];
-static struct spinlock ws_lock;
-static int ws_initialized;
-static uint next_victim[NCPU];
-static struct worksteal_stats ws_stats[NCPU];
-
-static uint
-valid_cpu_mask(void)
-{
-  return (1U << NCPU) - 1U;
-}
-
-static int
-cpu_is_online(int cpu_id, uint online_mask)
-{
-  return cpu_id >= 0 && cpu_id < NCPU &&
-         (online_mask & (1U << cpu_id)) != 0;
-}
-
-// Snapshot check.
-// rq_steal_runnable() will revalidate state and affinity before migration.
-static int
-proc_can_run_on(struct proc *p, int dst_cpu, int *affinity_rejected)
-{
-  int allowed = 0;
-
-  if (affinity_rejected)
-    *affinity_rejected = 0;
-
-  if (p == 0 || dst_cpu < 0 || dst_cpu >= NCPU)
-    return 0;
-
-  acquire(&p->lock);
-
-  if (p->state == RUNNABLE) {
-    if ((p->affinity_mask & (1U << dst_cpu)) != 0) {
-      allowed = 1;
-    } else if (affinity_rejected) {
-      *affinity_rejected = 1;
-    }
-  }
-
-  release(&p->lock);
-
-  return allowed;
-}
 
 // Count runnable processes in src_cpu that are eligible to run on dst_cpu.
 static int
@@ -80,7 +32,7 @@ count_eligible(int src_cpu, int dst_cpu, uint *affinity_skips)
     if (p == 0)
       continue;
 
-    if (proc_can_run_on(p, dst_cpu, &affinity_rejected)) {
+    if (rq_proc_can_run_on(p, dst_cpu, &affinity_rejected)) {
       count++;
     } else if (affinity_rejected && affinity_skips) {
       (*affinity_skips)++;
@@ -90,11 +42,13 @@ count_eligible(int src_cpu, int dst_cpu, uint *affinity_skips)
   return count;
 }
 
-// Initialize Work Stealing module.
-// Must be called once during kernel initialization.
+// Initialize Work Stealing module. Safe to call more than once.
 void
 worksteal_init(void)
 {
+  if (ws_initialized)
+    return;
+
   initlock(&ws_lock, "worksteal");
 
   for (int cpu = 0; cpu < NCPU; cpu++) {
@@ -126,16 +80,15 @@ worksteal_try(int thief_cpu, uint online_mask)
   int norder = 0;
   int start;
   int moved = 0;
+  int done = 0; // set when the whole search must stop (dst got work)
 
   uint skipped = 0;
 
-  if (!ws_initialized ||
-      thief_cpu < 0 ||
-      thief_cpu >= NCPU)
+  if (!ws_initialized || thief_cpu < 0 || thief_cpu >= NCPU)
     return -1;
 
-  if ((online_mask & ~valid_cpu_mask()) != 0 ||
-      !cpu_is_online(thief_cpu, online_mask))
+  if ((online_mask & ~rq_valid_cpu_mask()) != 0 ||
+      !rq_cpu_online(thief_cpu, online_mask))
     return -1;
 
   // Work Stealing is only useful when the local queue is empty.
@@ -144,21 +97,18 @@ worksteal_try(int thief_cpu, uint online_mask)
 
   // Read the next victim starting position.
   acquire(&ws_lock);
-
   ws_stats[thief_cpu].searches++;
-
   start = (int)next_victim[thief_cpu];
-
   release(&ws_lock);
 
   // --------------------------------------------------
   // STEP 1: Find and rank eligible victim CPUs.
   // --------------------------------------------------
-
-  // Rank victims by the number of processes that can
-  // legally execute on the destination CPU.
   //
-  // When scores are equal, preserve round-robin order.
+  // A victim is worth visiting only if it has work to spare
+  // (load = queued + running > 1). Victims are ranked by the number of
+  // queued processes that may legally run on the thief; ties keep the
+  // round-robin order.
 
   for (int step = 0; step < NCPU; step++) {
     int victim = (start + step) % NCPU;
@@ -169,7 +119,10 @@ worksteal_try(int thief_cpu, uint online_mask)
     if (victim == thief_cpu)
       continue;
 
-    if (!cpu_is_online(victim, online_mask))
+    if (!rq_cpu_online(victim, online_mask))
+      continue;
+
+    if (rq_load(victim) <= 1)
       continue;
 
     score = count_eligible(victim, thief_cpu, &skipped);
@@ -180,13 +133,9 @@ worksteal_try(int thief_cpu, uint online_mask)
     // Insert victim into descending score order.
     insert_at = norder;
 
-    while (insert_at > 0 &&
-           eligible[insert_at - 1] < score) {
-
+    while (insert_at > 0 && eligible[insert_at - 1] < score) {
       order[insert_at] = order[insert_at - 1];
-
       eligible[insert_at] = eligible[insert_at - 1];
-
       insert_at--;
     }
 
@@ -198,99 +147,75 @@ worksteal_try(int thief_cpu, uint online_mask)
 
   // Update affinity statistics and rotate victim selection.
   acquire(&ws_lock);
-
   ws_stats[thief_cpu].affinity_skips += skipped;
-
   next_victim[thief_cpu] = (uint)(start + 1) % NCPU;
-
   release(&ws_lock);
 
   // --------------------------------------------------
   // STEP 2: Try stealing from ranked victim CPUs.
   // --------------------------------------------------
 
-  for (int i = 0; i < norder; i++) {
+  for (int i = 0; i < norder && !moved && !done; i++) {
     int victim = order[i];
-
     int length = rq_length(victim);
 
     for (int offset = 0; offset < length; offset++) {
       struct proc *p = rq_peek_at(victim, offset);
 
-      int affinity_rejected = 0;
+      int attempted = 0;
+      int result = RQ_STEAL_INELIGIBLE;
 
       if (p == 0)
         continue;
 
-      // Preliminary state and affinity check.
-      if (!proc_can_run_on(p, thief_cpu, &affinity_rejected))
-        continue;
-
-      // Count this migration attempt.
-      acquire(&ws_lock);
-
-      ws_stats[thief_cpu].attempts++;
-
-      release(&ws_lock);
-
-      // ------------------------------------------------
-      // STEP 3: Atomically steal the process.
-      // ------------------------------------------------
-
-      int transfer_result;
-
-      // rq_steal_runnable() requires p->lock to be held.
+      // State and affinity are checked under p->lock, and the migration is
+      // done under the same lock hold: rq_steal_runnable() needs p->lock.
       acquire(&p->lock);
-
-      transfer_result = rq_steal_runnable(
-          victim,
-          thief_cpu,
-          p
-      );
-
+      if (p->state == RUNNABLE && (p->affinity_mask & (1U << thief_cpu)) != 0) {
+        attempted = 1;
+        result = rq_steal_runnable(victim, thief_cpu, p);
+      }
       release(&p->lock);
 
-      if (transfer_result == 0) {
+      // Not a candidate any more (cheap filter, not a migration attempt).
+      if (!attempted)
+        continue;
 
-        // Successfully stole one process.
-        acquire(&ws_lock);
-
+      acquire(&ws_lock);
+      ws_stats[thief_cpu].attempts++;
+      if (result == RQ_STEAL_OK) {
         ws_stats[thief_cpu].successes++;
+        // Next search starts from the CPU after the victim that gave work.
+        next_victim[thief_cpu] = (uint)(victim + 1) % NCPU;
+      } else if (result == RQ_STEAL_INELIGIBLE || result == RQ_STEAL_STALE) {
+        ws_stats[thief_cpu].stale_candidates++;
+      }
+      release(&ws_lock);
 
-        // Next search starts from the CPU after the
-        // victim that provided work.
-        next_victim[thief_cpu] =
-            (uint)(victim + 1) % NCPU;
-
-        release(&ws_lock);
-
+      if (result == RQ_STEAL_OK) {
+        // Only steal one process per invocation.
         moved = 1;
-
         break;
       }
+      if (result == RQ_STEAL_DST_BUSY || result == RQ_STEAL_INVALID) {
+        // Our own queue got work (or a bug): stop the whole search.
+        done = 1;
+        break;
+      }
+      if (result == RQ_STEAL_SRC_LOW)
+        break; // nothing to spare on this victim: go to the next one
 
-      // Candidate may have changed before migration.
-      acquire(&ws_lock);
-
-      ws_stats[thief_cpu].stale_candidates++;
-
-      release(&ws_lock);
+      // INELIGIBLE / STALE: try the next candidate on this victim.
     }
-
-    // Only steal one process per invocation.
-    if (moved)
-      break;
   }
 
   // --------------------------------------------------
-  // STEP 4: Update failed search statistics.
+  // STEP 3: Update failed search statistics.
   // --------------------------------------------------
 
   if (!moved) {
     acquire(&ws_lock);
-
     ws_stats[thief_cpu].failed_searches++;
-
     release(&ws_lock);
   }
 
@@ -301,16 +226,11 @@ worksteal_try(int thief_cpu, uint online_mask)
 int
 worksteal_get_stats(int thief_cpu, struct worksteal_stats *out)
 {
-  if (!ws_initialized ||
-      out == 0 ||
-      thief_cpu < 0 ||
-      thief_cpu >= NCPU)
+  if (!ws_initialized || out == 0 || thief_cpu < 0 || thief_cpu >= NCPU)
     return -1;
 
   acquire(&ws_lock);
-
   *out = ws_stats[thief_cpu];
-
   release(&ws_lock);
 
   return 0;

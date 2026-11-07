@@ -160,15 +160,14 @@ rq_steal_runnable(int src_cpu, int dst_cpu, struct proc *p)
   struct runqueue *second;
   int found = -1;
 
-  if (!valid_cpu(src_cpu) || !valid_cpu(dst_cpu) ||
-      src_cpu == dst_cpu || p == 0)
+  if (!valid_cpu(src_cpu) || !valid_cpu(dst_cpu) || src_cpu == dst_cpu ||
+      p == 0)
     return -1;
 
   // State and affinity are protected by p->lock.
   if (!holding(&p->lock))
     return -1;
-  if (p->state != RUNNABLE ||
-      (p->affinity_mask & (1U << dst_cpu)) == 0)
+  if (p->state != RUNNABLE || (p->affinity_mask & (1U << dst_cpu)) == 0)
     return -1;
 
   src = &runqueues[src_cpu];
@@ -185,9 +184,9 @@ rq_steal_runnable(int src_cpu, int dst_cpu, struct proc *p)
   acquire(&first->lock);
   acquire(&second->lock);
 
-// Destination must be empty.
-// Source must retain at least one runnable process.
-if (dst->count != 0 || src->count <= 1)
+  // Destination must be empty.
+  // Source must retain at least one runnable process.
+  if (dst->count != 0 || src->count <= 1)
     goto out;
 
   // Find p in the source queue.
@@ -235,8 +234,8 @@ rq_transfer(int src_cpu, int dst_cpu, struct proc *p)
   int found = -1;
   int ret = -1;
 
-  if (!valid_cpu(src_cpu) || !valid_cpu(dst_cpu) ||
-      src_cpu == dst_cpu || p == 0)
+  if (!valid_cpu(src_cpu) || !valid_cpu(dst_cpu) || src_cpu == dst_cpu ||
+      p == 0)
     return -1;
 
   // Acquire process lock if caller does not hold it.
@@ -246,8 +245,7 @@ rq_transfer(int src_cpu, int dst_cpu, struct proc *p)
   }
 
   // Validate process state and CPU affinity.
-  if (p->state != RUNNABLE ||
-      (p->affinity_mask & (1U << dst_cpu)) == 0)
+  if (p->state != RUNNABLE || (p->affinity_mask & (1U << dst_cpu)) == 0)
     goto done;
 
   src = &runqueues[src_cpu];

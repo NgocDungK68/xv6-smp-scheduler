@@ -3,9 +3,15 @@
 
 #include "types.h"
 
-#define LB_INTERVAL_TICKS       10U
-#define LB_IMBALANCE_THRESHOLD   2
-#define LB_MAX_MOVES_PER_RUN     1
+#define LB_INTERVAL_TICKS      10U
+#define LB_IMBALANCE_THRESHOLD 2
+#define LB_MAX_MOVES_PER_RUN   1
+
+// 1: scheduler() prints "LOAD BALANCE: migrated N process(es)" on every
+// migration. Set to 0 (or compile with -DLB_VERBOSE=0) to silence it.
+#ifndef LB_VERBOSE
+#define LB_VERBOSE 1
+#endif
 
 struct loadbalance_stats {
   uint checks;
