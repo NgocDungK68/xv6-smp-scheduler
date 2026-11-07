@@ -2,15 +2,24 @@ on: [push, pull_request]
 
 jobs:
   linux:
-    runs-on: ubuntu-26.04
-    steps:
-      - uses: actions/checkout@v7
-      - run: sudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu qemu-system-riscv clang-format bc
-      - run: make fmt && git diff --exit-code
-      - run: make kernel/kernel fs.img
-      - run: ./test-xv6.py usertests
-      - run: ./test-xv6.py crash
+linux:
+  runs-on: ubuntu-26.04
+  steps:
+    - uses: actions/checkout@v7
 
+    - name: Install dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y gcc-riscv64-linux-gnu qemu-system-riscv clang-format-21 bc
+        sudo ln -sf /usr/bin/clang-format-21 /usr/local/bin/clang-format
+
+    - name: Check formatter version
+      run: clang-format --version
+
+    - run: make fmt && git diff --exit-code
+    - run: make kernel/kernel fs.img
+    - run: ./test-xv6.py usertests
+    - run: ./test-xv6.py crash
   macos:
     runs-on: macos-latest
     steps:
