@@ -7,7 +7,7 @@
 
 // Hàm giả lập tính toán CPU-bound nặng
 void do_work() {
-  volatile int sum = 0;
+  volatile int sum = 0; (void)sum;
   
   // Vòng lặp giả lập khối lượng công việc nặng
   for(int i = 0; i < 10000000; i++) {
