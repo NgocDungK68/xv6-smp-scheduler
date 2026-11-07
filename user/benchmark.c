@@ -6,16 +6,18 @@
 #define OPS_PER_PROCESS 10000000
 
 // Hàm giả lập tính toán CPU-bound nặng
+// user/benchmark.c
 void
 do_work()
 {
   volatile int sum = 0;
-  (void)sum;
 
-  // Vòng lặp giả lập khối lượng công việc nặng
   for (int i = 0; i < 10000000; i++) {
     sum += i;
   }
+
+  printf("Worker finished, sum = %d\n", sum);
+}
 
   // In ra kết quả để trình biên dịch hiểu biến sum có được sử dụng
   printf("Worker finished, sum = %d\n", sum);
