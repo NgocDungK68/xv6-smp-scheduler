@@ -1,30 +1,42 @@
+name: CI
+
 on: [push, pull_request]
 
 jobs:
   linux:
-linux:
-  runs-on: ubuntu-26.04
-  steps:
-    - uses: actions/checkout@v7
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v4
 
-    - name: Install dependencies
-- run: sudo apt-get update && sudo apt-get install -y gcc-riscv64-linux-gnu qemu-system-riscv clang-format-21 bc
-- run: sudo ln -sf /usr/bin/clang-format-21 /usr/local/bin/clang-format
-- run: clang-format --version
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-riscv64-linux-gnu qemu-system-riscv clang-format-21 bc
 
+      - name: Setup clang-format symlink
+        run: sudo ln -sf /usr/bin/clang-format-21 /usr/local/bin/clang-format
 
+      - name: Check formatter version
+        run: clang-format --version
 
-    - name: Check formatter version
-      run: clang-format --version
+      - name: Check code formatting
+        run: make fmt && git diff --exit-code
 
-    - run: make fmt && git diff --exit-code
-    - run: make kernel/kernel fs.img
-    - run: ./test-xv6.py usertests
-    - run: ./test-xv6.py crash
+      - name: Build kernel and file system image
+        run: make kernel/kernel fs.img
+
+      - name: Run xv6 tests
+        run: |
+          ./test-xv6.py usertests
+          ./test-xv6.py crash
+
   macos:
     runs-on: macos-latest
     steps:
-    - uses: actions/checkout@v7
-      - run: brew install riscv64-elf-binutils riscv64-elf-gcc
-      - run: make TOOLPREFIX=riscv64-elf- kernel/kernel fs.img
-      - run: brew install riscv64-elf-binutils riscv64-elf-gcc qemu
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies (macOS)
+        run: brew install riscv64-elf-binutils riscv64-elf-gcc qemu
+
+      - name: Build kernel and image (macOS)
+        run: make TOOLPREFIX=riscv64-elf- kernel/kernel fs.img
