@@ -14,6 +14,10 @@ do_work()
   for (int i = 0; i < OPS_PER_PROCESS; i++) {
     sum += (i % 7) * 3;
   }
+
+  // Read the final result so it is not an unused variable.
+  if (sum == -1)
+    printf("benchmark: checksum marker reached\n");
 }
 
 // Hàm chạy kịch bản với số lượng tiến trình cho trước
@@ -63,8 +67,8 @@ run_test(int num_procs)
 int
 main(int argc, char *argv[])
 {
-  printf("\n=== TUAN 1: BASELINE STOCK XV6 (GLOBAL LOCK) ===\n");
-  printf(" Cores (Procs)\t| Time (Ticks)\t| KOps/sec\n");
+  printf("\n=== TUAN 1: BASELINE XV6 - GLOBAL PROCESS SCAN ===\n");
+  printf(" Processes\t| Time (Ticks)\t| KOps/sec\n");
   printf("------------------------------------------------\n");
 
   // Tự động quét qua các mức tải: 1, 2, 4, 8
