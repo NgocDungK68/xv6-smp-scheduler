@@ -659,6 +659,17 @@ ksetaffinity(int pid, uint mask)
   // Process not found.
   return -1;
 }
+
+// Caller must hold p->lock.
+int
+cpu_allowed(struct proc *p, int cpu_id)
+{
+  if (p == 0 || cpu_id < 0 || cpu_id >= NCPU)
+    return 0;
+
+  return (p->affinity_mask & (1U << cpu_id)) != 0;
+}
+
 // Kill the process with the given pid.
 // The victim won't exit until it tries to return
 // to user space (see usertrap() in trap.c).

@@ -79,7 +79,8 @@ void            panic(char*) __attribute__((noreturn));
 void            printkinit(void);
 
 // proc.c
-int ksetaffinity(int pid, uint mask);
+int             ksetaffinity(int pid, uint mask);
+int             cpu_allowed(struct proc *p, int cpu_id);
 int             cpuid(void);
 void            kexit(int);
 int             kfork(void);
@@ -112,6 +113,11 @@ void            yield(void);
 void            sched_enqueue(struct proc *p);
 void            sched_cpu_online(void);
 uint            sched_online_mask(void);
+
+// affinity_test.c
+#ifdef AFFINITY_TEST
+void            affinity_selftest(void);
+#endif
 
 // swtch.S
 void            swtch(struct context*, struct context*);
