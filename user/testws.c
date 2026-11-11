@@ -22,9 +22,12 @@ struct worker_stats {
 static void sample_cpu(struct worker_stats *stats)
 {
   int cpu = getcpu();
-  if (cpu < 0 || cpu >= NCPU) return;
-  if (stats->first_cpu < 0) stats->first_cpu = cpu;
-  if (stats->last_cpu >= 0 && stats->last_cpu != cpu) stats->sampled_changes++;
+  if (cpu < 0 || cpu >= NCPU)
+    return;
+  if (stats->first_cpu < 0)
+    stats->first_cpu = cpu;
+  if (stats->last_cpu >= 0 && stats->last_cpu != cpu)
+    stats->sampled_changes++;
   stats->last_cpu = cpu;
   stats->cpu_mask |= (1U << cpu);
 }
@@ -33,7 +36,8 @@ static void wait_for_cpu_in_mask(uint mask)
 {
   int spins = 0;
   while (!(mask & (1U << getcpu()))) {
-    if (++spins > 100000000) break;
+    if (++spins > 100000000)
+      break;
   }
 }
 
@@ -65,17 +69,21 @@ int main(int argc, char *argv[])
   struct worker_stats all[MAX_WORKERS];
   int valid[MAX_WORKERS];
 
-  if (argc > 1) workers = atoi(argv[1]);
-  if (argc > 2) iterations = atoi(argv[2]);
+  if (argc > 1)
+    workers = atoi(argv[1]);
+  if (argc > 2)
+    iterations = atoi(argv[2]);
 
   if (workers < 1 || workers > MAX_WORKERS || iterations < 1) {
-    printf("usage: testws [workers: 1-%d] [iterations: positive]\n", MAX_WORKERS);
+    printf("usage: testws [workers: 1-%d] [iterations: positive]\n",
+           MAX_WORKERS);
     exit(1);
   }
 
   printf("testws: workers=%d iterations=%d\n", workers, iterations);
-  printf("--- Kịch bản: Ép 50%% số tiến trình vào CPU %d, còn lại chạy tự do ---\n\n",
-         PINNED_CPU);
+  printf(
+    "--- Kịch bản: Ép 50%% số tiến trình vào CPU %d, còn lại chạy tự do ---\n\n",
+    PINNED_CPU);
 
   if (pipe(result_pipe) < 0) {
     printf("testws: pipe failed\n");
@@ -134,25 +142,28 @@ int main(int argc, char *argv[])
       continue;
     }
     struct worker_stats *s = &all[i];
-    printf("PID=%d first_cpu=%d last_cpu=%d cpu_mask=0x%x changes=%d\n",
-           s->pid, s->first_cpu, s->last_cpu, s->cpu_mask, s->sampled_changes);
+    printf("PID=%d first_cpu=%d last_cpu=%d cpu_mask=0x%x changes=%d\n", s->pid,
+           s->first_cpu, s->last_cpu, s->cpu_mask, s->sampled_changes);
 
     if (s->expected_cpu_mask != FREE_MASK) {
       if ((s->cpu_mask & s->expected_cpu_mask) == s->cpu_mask) {
-        printf("  >>> THÀNH CÔNG: PID %d bị khóa chặt vào CPU %d.\n",
-               s->pid, PINNED_CPU);
+        printf("  >>> THÀNH CÔNG: PID %d bị khóa chặt vào CPU %d.\n", s->pid,
+               PINNED_CPU);
       } else {
-        printf("  >>> LỖI: PID %d vi phạm Affinity! (Expected: 0x%x, Actual: 0x%x)\n",
-               s->pid, s->expected_cpu_mask, s->cpu_mask);
+        printf(
+          "  >>> LỖI: PID %d vi phạm Affinity! (Expected: 0x%x, Actual: 0x%x)\n",
+          s->pid, s->expected_cpu_mask, s->cpu_mask);
       }
     } else {
       if (s->sampled_changes > 0) {
         if (s->first_cpu == PINNED_CPU)
-          printf("  >>> THÀNH CÔNG: PID %d bị Work-Stealing khỏi CPU bận %d → CPU %d.\n",
-                 s->pid, s->first_cpu, s->last_cpu);
+          printf(
+            "  >>> THÀNH CÔNG: PID %d bị Work-Stealing khỏi CPU bận %d → CPU %d.\n",
+            s->pid, s->first_cpu, s->last_cpu);
         else
-          printf("  >>> THÀNH CÔNG: PID %d đã được Load Balancing (CPU %d → %d).\n",
-                 s->pid, s->first_cpu, s->last_cpu);
+          printf(
+            "  >>> THÀNH CÔNG: PID %d đã được Load Balancing (CPU %d → %d).\n",
+            s->pid, s->first_cpu, s->last_cpu);
       } else {
         printf("  >>> INFO: PID %d chạy trên một CPU duy nhất (CPU %d).\n",
                s->pid, s->last_cpu);
@@ -164,10 +175,12 @@ int main(int argc, char *argv[])
   int pinned_total = 0, pinned_ok = 0, pinned_bad = 0;
   int free_total = 0, free_migrated = 0, free_stolen = 0;
   int cpu_load[NCPU];
-  for (int c = 0; c < NCPU; c++) cpu_load[c] = 0;
+  for (int c = 0; c < NCPU; c++)
+    cpu_load[c] = 0;
 
   for (int i = 0; i < launched; i++) {
-    if (!valid[i]) continue;
+    if (!valid[i])
+      continue;
     struct worker_stats *s = &all[i];
 
     if (s->last_cpu >= 0 && s->last_cpu < NCPU)
@@ -190,19 +203,18 @@ int main(int argc, char *argv[])
   }
 
   printf("\n=== AGGREGATE REPORT ===\n");
-  printf("Pinned workers:  %d  (OK=%d, VIOLATIONS=%d)\n",
-         pinned_total, pinned_ok, pinned_bad);
-  printf("Free workers:    %d  (migrated=%d, stayed=%d)\n",
-         free_total, free_migrated, free_total - free_migrated);
+  printf("Pinned workers:  %d  (OK=%d, VIOLATIONS=%d)\n", pinned_total,
+         pinned_ok, pinned_bad);
+  printf("Free workers:    %d  (migrated=%d, stayed=%d)\n", free_total,
+         free_migrated, free_total - free_migrated);
   printf("Work-stealing:   %d worker(s) bị steal khỏi CPU bận %d\n",
          free_stolen, PINNED_CPU);
   printf("Final CPU distribution (last_cpu):\n");
   for (int c = 0; c < NCPU; c++) {
-    printf("  CPU %d: %d worker(s)%s\n",
-           c, cpu_load[c], c == PINNED_CPU ? "  [pinned target]" : "");
+    printf("  CPU %d: %d worker(s)%s\n", c, cpu_load[c],
+           c == PINNED_CPU ? "  [pinned target]" : "");
   }
-  printf("Affinity enforcement: %s\n",
-         pinned_bad == 0 ? "PASS" : "FAIL");
+  printf("Affinity enforcement: %s\n", pinned_bad == 0 ? "PASS" : "FAIL");
   printf("Work-stealing:        %s\n",
          free_migrated > 0 ? "PASS" : "not triggered (no contention)");
 

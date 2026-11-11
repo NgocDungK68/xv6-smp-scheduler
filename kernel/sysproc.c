@@ -7,8 +7,7 @@
 #include "proc.h"
 #include "vm.h"
 
-uint64
-sys_exit(void)
+uint64 sys_exit(void)
 {
   int n;
   argint(0, &n);
@@ -16,15 +15,10 @@ sys_exit(void)
   return 0; // not reached
 }
 
-uint64
-sys_getpid(void)
-{
-  return myproc()->pid;
-}
+uint64 sys_getpid(void) { return myproc()->pid; }
 
 // Return the ID of the CPU currently executing this system call.
-uint64
-sys_getcpu(void)
+uint64 sys_getcpu(void)
 {
   push_off();
   int id = cpuid();
@@ -34,8 +28,7 @@ sys_getcpu(void)
 }
 
 // System call: set CPU affinity for a process.
-uint64
-sys_sched_setaffinity(void)
+uint64 sys_sched_setaffinity(void)
 {
   int pid;
   int mask;
@@ -48,22 +41,16 @@ sys_sched_setaffinity(void)
   return ksetaffinity(pid, (uint)mask);
 }
 
-uint64
-sys_fork(void)
-{
-  return kfork();
-}
+uint64 sys_fork(void) { return kfork(); }
 
-uint64
-sys_wait(void)
+uint64 sys_wait(void)
 {
   uint64 p;
   argaddr(0, &p);
   return kwait(p);
 }
 
-uint64
-sys_sbrk(void)
+uint64 sys_sbrk(void)
 {
   uint64 addr;
   int t;
@@ -90,8 +77,7 @@ sys_sbrk(void)
   return addr;
 }
 
-uint64
-sys_pause(void)
+uint64 sys_pause(void)
 {
   int n;
   uint ticks0;
@@ -115,8 +101,7 @@ sys_pause(void)
   return 0;
 }
 
-uint64
-sys_kill(void)
+uint64 sys_kill(void)
 {
   int pid;
 
@@ -126,8 +111,7 @@ sys_kill(void)
 
 // return how many clock tick interrupts have occurred
 // since start.
-uint64
-sys_uptime(void)
+uint64 sys_uptime(void)
 {
   uint xticks;
 
@@ -137,8 +121,7 @@ sys_uptime(void)
   return xticks;
 }
 
-uint64
-sys_setaffinity(void)
+uint64 sys_setaffinity(void)
 {
   int pid, mask;
   struct proc *p;
@@ -149,9 +132,9 @@ sys_setaffinity(void)
   argint(1, &mask);
 
   // Tìm tiến trình theo PID và cập nhật affinity_mask
-  for(p = proc; p < &proc[NPROC]; p++){
+  for (p = proc; p < &proc[NPROC]; p++) {
     acquire(&p->lock);
-    if(p->pid == pid){
+    if (p->pid == pid) {
       p->affinity_mask = mask;
       release(&p->lock);
       return 0;
