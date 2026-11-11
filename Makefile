@@ -13,6 +13,7 @@ OBJS = \
   $K/main.o \
   $K/vm.o \
   $K/proc.o \
+  $K/scheduler.o \
   $K/swtch.o \
   $K/trampoline.o \
   $K/trap.o \
@@ -163,6 +164,7 @@ UPROGS=\
 	$U/_testmockws\
 	$U/_getcpu_test\
 	$U/_affinity_test\
+	$U/_scheduler_test\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

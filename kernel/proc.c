@@ -55,6 +55,7 @@ procinit(void)
   for (p = proc; p < &proc[NPROC]; p++) {
     initlock(&p->lock, "proc");
     p->state = UNUSED;
+    p->rq_cpu = -1;
     p->kstack = KSTACK((int)(p - proc));
   }
 }
@@ -125,6 +126,8 @@ allocproc(void)
 found:
   p->pid = allocpid();
   p->state = USED;
+  p->rq_cpu = -1;
+
   // Allow the process to run on all supported CPUs by default.
   p->affinity_mask = (1U << NCPU) - 1;
 
@@ -158,6 +161,9 @@ found:
 static void
 freeproc(struct proc *p)
 {
+  if (p->rq_cpu != -1)
+    panic("freeproc: queued");
+
   if (p->trapframe)
     kfree((void *)p->trapframe);
   p->trapframe = 0;
@@ -171,6 +177,7 @@ freeproc(struct proc *p)
   p->chan = 0;
   p->killed = 0;
   p->xstate = 0;
+  p->rq_cpu = -1;
   p->state = UNUSED;
 }
 
@@ -229,7 +236,7 @@ userinit(void)
 
   p->cwd = namei("/");
 
-  p->state = RUNNABLE;
+  sched_enqueue(p);
 
   release(&p->lock);
 }
@@ -306,7 +313,7 @@ kfork(void)
   release(&wait_lock);
 
   acquire(&np->lock);
-  np->state = RUNNABLE;
+  sched_enqueue(np);
   release(&np->lock);
 
   return pid;
@@ -426,94 +433,94 @@ kwait(uint64 addr)
   }
 }
 
-// Per-CPU process scheduler.
-// Each CPU calls scheduler() after setting itself up.
-// Scheduler never returns.  It loops, doing:
-//  - choose a process to run.
-//  - swtch to start running that process.
-//  - eventually that process transfers control
-//    via swtch back to the scheduler.
-void
-scheduler(void)
-{
-  struct proc *p;
-  struct cpu *c = mycpu();
+// // Per-CPU process scheduler.
+// // Each CPU calls scheduler() after setting itself up.
+// // Scheduler never returns.  It loops, doing:
+// //  - choose a process to run.
+// //  - swtch to start running that process.
+// //  - eventually that process transfers control
+// //    via swtch back to the scheduler.
+// void
+// scheduler(void)
+// {
+//   struct proc *p;
+//   struct cpu *c = mycpu();
 
-  c->proc = 0;
-  for (;;) {
-    // The most recent process to run may have had interrupts
-    // turned off; enable them to avoid a deadlock if all
-    // processes are waiting. Then turn them back off
-    // to avoid a possible race between an interrupt
-    // and wfi.
-    intr_on();
-    intr_off();
+//   c->proc = 0;
+//   for (;;) {
+//     // The most recent process to run may have had interrupts
+//     // turned off; enable them to avoid a deadlock if all
+//     // processes are waiting. Then turn them back off
+//     // to avoid a possible race between an interrupt
+//     // and wfi.
+//     intr_on();
+//     intr_off();
 
-    int found = 0;
-    for (p = proc; p < &proc[NPROC]; p++) {
-      acquire(&p->lock);
-      if (p->state == RUNNABLE) {
-        // Switch to chosen process.  It is the process's job
-        // to release its lock and then reacquire it
-        // before jumping back to us.
-        p->state = RUNNING;
-        c->proc = p;
-        swtch(&c->context, &p->context);
+//     int found = 0;
+//     for (p = proc; p < &proc[NPROC]; p++) {
+//       acquire(&p->lock);
+//       if (p->state == RUNNABLE) {
+//         // Switch to chosen process.  It is the process's job
+//         // to release its lock and then reacquire it
+//         // before jumping back to us.
+//         p->state = RUNNING;
+//         c->proc = p;
+//         swtch(&c->context, &p->context);
 
-        // Don't re-enable interrupts on release.
-        mycpu()->intena = 0;
+//         // Don't re-enable interrupts on release.
+//         mycpu()->intena = 0;
 
-        // Process is done running for now.
-        // It should have changed its p->state before coming back.
-        c->proc = 0;
-        found = 1;
-      }
-      release(&p->lock);
-    }
-    if (found == 0) {
-      // nothing to run; stop running on this core until an interrupt.
-      asm volatile("wfi");
-    }
-  }
-}
+//         // Process is done running for now.
+//         // It should have changed its p->state before coming back.
+//         c->proc = 0;
+//         found = 1;
+//       }
+//       release(&p->lock);
+//     }
+//     if (found == 0) {
+//       // nothing to run; stop running on this core until an interrupt.
+//       asm volatile("wfi");
+//     }
+//   }
+// }
 
-// Switch to scheduler.  Must hold only p->lock
-// and have changed proc->state. Saves and restores
-// intena because intena is a property of this
-// kernel thread, not this CPU. It should
-// be proc->intena and proc->noff, but that would
-// break in the few places where a lock is held but
-// there's no process.
-void
-sched(void)
-{
-  int intena;
-  struct proc *p = myproc();
+// // Switch to scheduler.  Must hold only p->lock
+// // and have changed proc->state. Saves and restores
+// // intena because intena is a property of this
+// // kernel thread, not this CPU. It should
+// // be proc->intena and proc->noff, but that would
+// // break in the few places where a lock is held but
+// // there's no process.
+// void
+// sched(void)
+// {
+//   int intena;
+//   struct proc *p = myproc();
 
-  if (!holding(&p->lock))
-    panic("sched p->lock");
-  if (mycpu()->noff != 1)
-    panic("sched locks");
-  if (p->state == RUNNING)
-    panic("sched RUNNING");
-  if (intr_get())
-    panic("sched interruptible");
+//   if (!holding(&p->lock))
+//     panic("sched p->lock");
+//   if (mycpu()->noff != 1)
+//     panic("sched locks");
+//   if (p->state == RUNNING)
+//     panic("sched RUNNING");
+//   if (intr_get())
+//     panic("sched interruptible");
 
-  intena = mycpu()->intena;
-  swtch(&p->context, &mycpu()->context);
-  mycpu()->intena = intena;
-}
+//   intena = mycpu()->intena;
+//   swtch(&p->context, &mycpu()->context);
+//   mycpu()->intena = intena;
+// }
 
-// Give up the CPU for one scheduling round.
-void
-yield(void)
-{
-  struct proc *p = myproc();
-  acquire(&p->lock);
-  p->state = RUNNABLE;
-  sched();
-  release(&p->lock);
-}
+// // Give up the CPU for one scheduling round.
+// void
+// yield(void)
+// {
+//   struct proc *p = myproc();
+//   acquire(&p->lock);
+//   p->state = RUNNABLE;
+//   sched();
+//   release(&p->lock);
+// }
 
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
@@ -595,7 +602,7 @@ wakeup(void *chan)
       // If this waiting process has gotten so far as to actually
       // go to sleep, also set it back to RUNNING.
       if (p->state == SLEEPING) {
-        p->state = RUNNABLE;
+        sched_enqueue(p);
       }
     }
     release(&p->lock);
@@ -613,6 +620,10 @@ ksetaffinity(int pid, uint mask)
   uint valid_mask = (1U << NCPU) - 1;
 
   if (mask == 0 || (mask & ~valid_mask) != 0)
+    return -1;
+
+  // Reject masks that contain no online CPU.
+  if ((mask & sched_online_mask()) == 0)
     return -1;
 
   // Negative PID is invalid.
@@ -665,7 +676,7 @@ kkill(int pid)
       p->killed = 1;
       if (p->state == SLEEPING) {
         // Wake process from sleep().
-        p->state = RUNNABLE;
+        sched_enqueue(p);
       }
       release(&p->lock);
       return 0;

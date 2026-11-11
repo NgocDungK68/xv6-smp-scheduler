@@ -12,8 +12,10 @@ void rq_init(void);
 // Append p; return 0 on success, -1 on failure.
 int rq_enqueue(int cpu_id, struct proc *p);
 
-// Remove the head; return 0 if empty or cpu_id is invalid.
-struct proc *rq_dequeue(int cpu_id);
+// Remove the head only if it matches expected.
+// Scheduling callers must hold expected->lock.
+// Return 0 on success, -1 if no matching head.
+int rq_dequeue(int cpu_id, struct proc *expected);
 
 // Return the number of queued processes, or -1 for invalid cpu_id.
 int rq_length(int cpu_id);
