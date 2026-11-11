@@ -5,8 +5,7 @@
 #define OPS_PER_PROCESS 10000000
 
 // Hàm giả lập tính toán CPU-bound nặng
-void
-do_work()
+void do_work()
 {
   volatile int sum = 0;
   (void)sum;
@@ -21,8 +20,7 @@ do_work()
 }
 
 // Hàm chạy kịch bản với số lượng tiến trình cho trước
-void
-run_test(int num_procs)
+void run_test(int num_procs)
 {
   int pids[32];
   uint64 start_time, end_time;
@@ -49,14 +47,14 @@ run_test(int num_procs)
   }
 
   end_time = uptime();
-  printf("All %d processes finished in %lu ticks\n", num_procs, end_time - start_time);
+  printf("All %d processes finished in %lu ticks\n", num_procs,
+         end_time - start_time);
 }
 
-int
-main(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
   printf("Starting CPU benchmark suite for xv6 SMP Scheduler...\n");
-  
+
   // Chạy thử nghiệm với các mức số lượng tiến trình khác nhau
   run_test(1);
   run_test(2);
