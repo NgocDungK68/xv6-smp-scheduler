@@ -5,6 +5,8 @@
 #include "proc.h"
 #include "defs.h"
 #include "runqueue.h"
+#include "worksteal.h"
+#include "loadbalancing.h"
 
 // CPUs set their online bit once, after per-hart initialization.
 static uint online_mask;
@@ -30,6 +32,60 @@ sched_online_mask(void)
   return __atomic_load_n(&online_mask, __ATOMIC_ACQUIRE);
 }
 
+// 1 if CPU is currently executing a process,
+// 0 if idle, -1 for invalid CPU ID.
+int
+sched_cpu_busy(int cpu_id)
+{
+  if (cpu_id < 0 || cpu_id >= NCPU)
+    return -1;
+
+  return __atomic_load_n(&cpu_busy[cpu_id], __ATOMIC_ACQUIRE);
+}
+
+// Total load = runnable queued processes + running process.
+//
+// Never call this while holding a runqueue lock.
+int
+sched_cpu_load(int cpu_id)
+{
+  int queued = rq_length(cpu_id);
+
+  if (queued < 0)
+    return -1;
+
+  return queued + sched_cpu_busy(cpu_id);
+}
+
+// Snapshot check for Work Stealing / Load Balancing.
+// Caller must NOT already hold p->lock.
+//
+// Actual migration must revalidate everything.
+int
+sched_can_migrate(struct proc *p, int src_cpu, int dst_cpu,
+                  int *affinity_rejected)
+{
+  if (affinity_rejected)
+    *affinity_rejected = 0;
+
+  if (p == 0 || src_cpu < 0 || src_cpu >= NCPU || dst_cpu < 0 ||
+      dst_cpu >= NCPU || src_cpu == dst_cpu)
+    return 0;
+
+  acquire(&p->lock);
+
+  int candidate = p->state == RUNNABLE && p->rq_cpu == src_cpu;
+
+  int allowed = cpu_allowed(p, dst_cpu);
+
+  if (candidate && !allowed && affinity_rejected)
+    *affinity_rejected = 1;
+
+  release(&p->lock);
+
+  return candidate && allowed;
+}
+
 // Caller holds p->lock. Select among CPUs that are online and allowed.
 static int
 sched_select_cpu(struct proc *p)
@@ -53,13 +109,10 @@ sched_select_cpu(struct proc *p)
     if ((eligible & (1U << id)) == 0)
       continue;
 
-    int queued = rq_length(id);
-    if (queued < 0)
-      panic("sched_select_cpu: queue");
+    int load = sched_cpu_load(id);
 
-    // RUNNING processes are not stored in their run queue.
-    int busy = __atomic_load_n(&cpu_busy[id], __ATOMIC_RELAXED);
-    int load = queued + busy;
+    if (load < 0)
+      panic("sched_select_cpu: load");
 
     if (load < min_load) {
       min_load = load;
@@ -133,19 +186,50 @@ scheduler(void)
   struct cpu *c = mycpu();
   int id = cpuid();
   c->proc = 0;
+  uint last_lb_tick = ~0U;
 
   for (;;) {
     // xv6 idle protocol: briefly enable interrupts before polling.
     intr_on();
     intr_off();
 
+    // CPU 0 coordinates periodic load balancing.
+    if (id == 0) {
+      uint now_ticks;
+
+      acquire(&tickslock);
+      now_ticks = ticks;
+      release(&tickslock);
+
+      if (now_ticks != last_lb_tick) {
+        last_lb_tick = now_ticks;
+
+        int moved = loadbalance_run(id, sched_online_mask(), now_ticks);
+
+#if LB_VERBOSE
+        if (moved > 0)
+          printk("LOAD BALANCE: migrated %d process(es)\n", moved);
+#else
+        (void)moved;
+#endif
+      }
+    }
+
     // Peek releases rq->lock before acquiring p->lock.
     struct proc *p = rq_peek_at(id, 0);
+
     if (p == 0) {
-      // Periodic timer interrupts wake this CPU;
-      // an IPI is a future extension.
-      asm volatile("wfi");
-      continue;
+      // Local queue empty: try stealing work.
+      worksteal_try(id, sched_online_mask());
+
+      // The stolen process is now in our local queue.
+      // Re-peek because the queue may have changed.
+      p = rq_peek_at(id, 0);
+
+      if (p == 0) {
+        asm volatile("wfi");
+        continue;
+      }
     }
 
     acquire(&p->lock);

@@ -10,6 +10,11 @@ struct sleeplock;
 struct stat;
 struct superblock;
 
+// affinity_test.c
+#ifdef AFFINITY_TEST
+void            affinity_selftest(void);
+#endif
+
 // bio.c
 void            binit(void);
 struct buf*     bread(uint, uint);
@@ -113,11 +118,10 @@ void            yield(void);
 void            sched_enqueue(struct proc *p);
 void            sched_cpu_online(void);
 uint            sched_online_mask(void);
-
-// affinity_test.c
-#ifdef AFFINITY_TEST
-void            affinity_selftest(void);
-#endif
+int             sched_cpu_busy(int cpu_id);
+int             sched_cpu_load(int cpu_id);
+int             sched_can_migrate(struct proc *p, int src_cpu, int dst_cpu,
+                                  int *affinity_rejected);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

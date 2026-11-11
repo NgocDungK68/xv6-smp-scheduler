@@ -193,7 +193,7 @@ proc_pagetable(struct proc *p)
   if (pagetable == 0)
     return 0;
 
-  // map the trampoline code (for system call return)
+  // map the trampoline code for trampoline.S,
   // at the highest user virtual address.
   // only the supervisor uses it, on the way
   // to/from user space, so not PTE_U.
@@ -724,7 +724,7 @@ either_copyout(int user_dst, uint64 dst, void *src, uint64 len)
 {
   struct proc *p = myproc();
   if (user_dst) {
-    return copyout(p->pagetable, p->sz, dst, src, len);
+    return copyout(p->pagetable, p->sz, dst, (char *)src, len);
   } else {
     memmove((char *)dst, src, len);
     return 0;
@@ -739,7 +739,7 @@ either_copyin(void *dst, int user_src, uint64 src, uint64 len)
 {
   struct proc *p = myproc();
   if (user_src) {
-    return copyin(p->pagetable, p->sz, dst, src, len);
+    return copyin(p->pagetable, p->sz, (char *)dst, src, len);
   } else {
     memmove(dst, (char *)src, len);
     return 0;
