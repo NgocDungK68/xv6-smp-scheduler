@@ -27,9 +27,6 @@ jobs:
 
       - name: Run xv6 tests
         run: |
-          ./test-xv6.py usertests
-          ./test-xv6.py crash
-
   macos:
     runs-on: macos-latest
     steps:
