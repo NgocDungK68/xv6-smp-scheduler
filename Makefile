@@ -32,7 +32,7 @@ OBJS = \
   $K/runqueue.o\
   $K/worksteal.o \
   $K/loadbalancing.o\
-  
+  $K/scheduler.o\
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
