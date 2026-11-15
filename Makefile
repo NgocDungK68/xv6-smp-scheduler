@@ -174,8 +174,10 @@ UPROGS=\
 	$U/_schedtest\
 	$U/_getcpu_test\
 	$U/_affinity_test\
-    $U/_affinity_rt\
+        $U/_affinity_rt\
 	$U/_scheduler_test\
+        $U/_lostwake_test\
+        $U/_lwstress\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
