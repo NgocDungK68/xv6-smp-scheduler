@@ -33,7 +33,10 @@ main(int argc, char **argv)
     printf("%s: open successed\n", s);
     exit(1);
   }
-  printf("wait for kill and reclaim %d\n", st.ino);
+  // Leading "\n": if test-xv6.py typed the command before the shell printed
+  // its prompt, the shell does not echo it again and "$ " would otherwise
+  // end up on the same line, hiding the "wait" the test matches at line start.
+  printf("\nwait for kill and reclaim %d\n", st.ino);
   // sit around until killed
   for (;;)
     pause(1000);

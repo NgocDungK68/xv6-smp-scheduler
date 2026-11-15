@@ -28,7 +28,8 @@ main(int argc, char **argv)
     printf("%s: unlink failed\n", s);
     exit(1);
   }
-  printf("wait for kill and reclaim\n");
+  // Leading "\n": see forphan.c.
+  printf("\nwait for kill and reclaim\n");
   // sit around until killed
   for (;;)
     pause(1000);
