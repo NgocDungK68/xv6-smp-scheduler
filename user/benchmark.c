@@ -48,7 +48,8 @@ static const int default_total[W_NUM] = {
 
 static char buf[BLK];
 
-static void fname(char *name, int id)
+static void
+fname(char *name, int id)
 {
   name[0] = 'b';
   name[1] = '0' + id / 10;
@@ -59,7 +60,8 @@ static void fname(char *name, int id)
 // ---- cac loai cong viec (chay trong tien trinh con) ----
 
 // Thuan CPU, khong cham kernel: dung de kiem tra may host co du core that.
-static void job_cpu(int id, int iters)
+static void
+job_cpu(int id, int iters)
 {
   volatile uint x = id + 1;
   for (int i = 0; i < iters; i++)
@@ -67,7 +69,8 @@ static void job_cpu(int id, int iters)
 }
 
 // Gay tranh chap bo cap phat trang (kalloc/kfree, kmem.lock).
-static void job_alloc(int id, int iters)
+static void
+job_alloc(int id, int iters)
 {
   for (int i = 0; i < iters; i++) {
     if (sbrk(PAGES_PER_ITER * 4096) == (char *)-1) {
@@ -79,7 +82,8 @@ static void job_alloc(int id, int iters)
 }
 
 // Gay tranh chap bang tien trinh va cap phat (allocproc, wait, kalloc).
-static void job_fork(int id, int iters)
+static void
+job_fork(int id, int iters)
 {
   for (int i = 0; i < iters; i++) {
     int pid = fork();
@@ -94,7 +98,8 @@ static void job_fork(int id, int iters)
 }
 
 // Gay tranh chap buffer cache / file table / icache (bcache.lock, ftable.lock).
-static void job_file(int id, int iters)
+static void
+job_file(int id, int iters)
 {
   char name[4];
   fname(name, id);
@@ -116,7 +121,8 @@ static void job_file(int id, int iters)
 // Moi worker gom 1 CAP tien trinh trao doi 1 byte qua 2 pipe. Moi vong = 2 lan
 // sleep/wakeup + 2 lan chuyen ngu canh => gay ap luc len scheduler (chon viec,
 // danh thuc, tranh chap lock cua tien trinh).
-static void job_pingpong(int id, int iters)
+static void
+job_pingpong(int id, int iters)
 {
   int ab[2], ba[2];
   char c = 'x';
@@ -151,7 +157,8 @@ static void job_pingpong(int id, int iters)
     exit(1);
 }
 
-static void job(int w, int id, int iters)
+static void
+job(int w, int id, int iters)
 {
   switch (w) {
   case W_CPU:
@@ -174,7 +181,8 @@ static void job(int w, int id, int iters)
 
 // ---- chuan bi / don dep (khong tinh vao thoi gian do) ----
 
-static int make_files(int n)
+static int
+make_files(int n)
 {
   char name[4];
   for (int i = 0; i < BLK; i++)
@@ -197,7 +205,8 @@ static int make_files(int n)
   return 0;
 }
 
-static void remove_files(int n)
+static void
+remove_files(int n)
 {
   char name[4];
   for (int id = 0; id < n; id++) {
@@ -210,7 +219,8 @@ static void remove_files(int n)
 // Tong cong viec co dinh, KHONG phu thuoc ncpu. Voi run queue rieng cho tung CPU,
 // cac tac vu moi sinh ra nam o CPU cua tien trinh cha, nen CPU khac phai
 // "lay trom" (work stealing) thi moi co speedup.
-static int run_burst(int total)
+static int
+run_burst(int total)
 {
   int unit =
     total / 80; // trong so 1..4 lap lai tren 32 tac vu: tong = 8*(1+2+3+4) = 80
@@ -243,7 +253,8 @@ static int run_burst(int total)
 
 // ---- mot lan do: tra ve so tick, hoac -1 neu co loi ----
 
-static int run_once(int w, int ncpu, int total)
+static int
+run_once(int w, int ncpu, int total)
 {
   if (w == W_BURST)
     return run_burst(total);
@@ -276,14 +287,16 @@ static int run_once(int w, int ncpu, int total)
   return ok ? t1 - t0 : -1;
 }
 
-static void usage(void)
+static void
+usage(void)
 {
   printf(
     "usage: bench <kernel> <cpu|alloc|fork|file|pingpong|burst> <ncpu> <runs> [total]\n");
   exit(1);
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
   if (argc < 5)
     usage();

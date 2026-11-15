@@ -19,7 +19,8 @@ struct worker_stats {
   uint expected_cpu_mask;
 };
 
-static void sample_cpu(struct worker_stats *stats)
+static void
+sample_cpu(struct worker_stats *stats)
 {
   int cpu = getcpu();
   if (cpu < 0 || cpu >= NCPU)
@@ -32,7 +33,8 @@ static void sample_cpu(struct worker_stats *stats)
   stats->cpu_mask |= (1U << cpu);
 }
 
-static void wait_for_cpu_in_mask(uint mask)
+static void
+wait_for_cpu_in_mask(uint mask)
 {
   int spins = 0;
   while (!(mask & (1U << getcpu()))) {
@@ -41,7 +43,8 @@ static void wait_for_cpu_in_mask(uint mask)
   }
 }
 
-static void burn_cpu(uint iterations, struct worker_stats *stats)
+static void
+burn_cpu(uint iterations, struct worker_stats *stats)
 {
   volatile uint x = (uint)getpid();
   stats->pid = getpid();
@@ -59,7 +62,8 @@ static void burn_cpu(uint iterations, struct worker_stats *stats)
   sample_cpu(stats);
 }
 
-int main(int argc, char *argv[])
+int
+main(int argc, char *argv[])
 {
   int workers = DEFAULT_WORKERS;
   int iterations = DEFAULT_ITERATIONS;

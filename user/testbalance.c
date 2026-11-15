@@ -61,7 +61,8 @@ struct scenario_result {
 
 // Hàm tự chế thay thế cho sleep() bị thiếu ở kernel
 // Dùng uptime() để chạy vòng lặp chờ, giữ nguyên logic thời gian
-static void custom_sleep(int wait_ticks)
+static void
+custom_sleep(int wait_ticks)
 {
   int start = uptime();
   while (uptime() - start < wait_ticks) {
@@ -72,7 +73,8 @@ static void custom_sleep(int wait_ticks)
 typedef char report_batch_fits_in_pipe
   [(MAX_REPORTS * sizeof(struct worker_report) <= PIPE_BYTES) ? 1 : -1];
 
-static int read_exact(int fd, void *buffer, int length)
+static int
+read_exact(int fd, void *buffer, int length)
 {
   int received = 0;
   char *p = (char *)buffer;
@@ -86,12 +88,14 @@ static int read_exact(int fd, void *buffer, int length)
   return received;
 }
 
-static int rel_ticks(ushort tick, int base)
+static int
+rel_ticks(ushort tick, int base)
 {
   return (int)(ushort)(tick - (ushort)base);
 }
 
-static void request_stop(void)
+static void
+request_stop(void)
 {
   int fd = open(STOP_FILE, O_CREATE | O_WRONLY);
 
@@ -102,7 +106,8 @@ static void request_stop(void)
            STOP_FILE);
 }
 
-static int stop_requested(void)
+static int
+stop_requested(void)
 {
   int fd = open(STOP_FILE, O_RDONLY);
 
@@ -112,7 +117,8 @@ static int stop_requested(void)
   return 1;
 }
 
-static int record_cpu(struct worker_report *report, int *prev_cpu)
+static int
+record_cpu(struct worker_report *report, int *prev_cpu)
 {
   int tick = uptime();
   int cpu = getcpu();
@@ -139,8 +145,8 @@ static int record_cpu(struct worker_report *report, int *prev_cpu)
   return tick;
 }
 
-static void run_worker(int role, int home_cpu, int iterations, int result_fd,
-                       int poll_stop)
+static void
+run_worker(int role, int home_cpu, int iterations, int result_fd, int poll_stop)
 {
   struct worker_report report;
   volatile uint value = (uint)getpid() + 1U;
@@ -181,14 +187,16 @@ static void run_worker(int role, int home_cpu, int iterations, int result_fd,
   exit(0);
 }
 
-static int parse_arg(int argc, char **argv, int index, int fallback)
+static int
+parse_arg(int argc, char **argv, int index, int fallback)
 {
   if (argc <= index)
     return fallback;
   return atoi(argv[index]);
 }
 
-static const char *mode_name(int mode)
+static const char *
+mode_name(int mode)
 {
   if (mode == MODE_IDLE_WS)
     return "idle-work-stealing";
@@ -199,7 +207,8 @@ static const char *mode_name(int mode)
   return "compare";
 }
 
-static void print_latency(const struct scenario_result *r)
+static void
+print_latency(const struct scenario_result *r)
 {
   if (r->lat_count == 0) {
     printf("n/a");
@@ -209,9 +218,9 @@ static void print_latency(const struct scenario_result *r)
          r->sum_latency / r->lat_count, r->max_latency);
 }
 
-static void account_source(struct scenario_result *res,
-                           const struct worker_report *rep, int widen_tick,
-                           int source_cpu, uint source_mask)
+static void
+account_source(struct scenario_result *res, const struct worker_report *rep,
+               int widen_tick, int source_cpu, uint source_mask)
 {
   int before_run = rep->first_cpu != CPU_NONE && rep->first_cpu != source_cpu;
 
@@ -246,8 +255,9 @@ static void account_source(struct scenario_result *res,
   (void)source_mask;
 }
 
-static int run_scenario(int mode, int workers, int iterations, int online_cpus,
-                        int source_cpu, struct scenario_result *res)
+static int
+run_scenario(int mode, int workers, int iterations, int online_cpus,
+             int source_cpu, struct scenario_result *res)
 {
   uint source_mask = 1U << source_cpu;
   uint all_mask = (1U << online_cpus) - 1U;
@@ -555,8 +565,9 @@ static int run_scenario(int mode, int workers, int iterations, int online_cpus,
   return res->failed;
 }
 
-static void print_comparison(const struct scenario_result *ws,
-                             const struct scenario_result *lb)
+static void
+print_comparison(const struct scenario_result *ws,
+                 const struct scenario_result *lb)
 {
   printf("\n=== WS vs LB comparison (ticks are after affinity widening)"
          " ===\n");
@@ -598,7 +609,8 @@ static void print_comparison(const struct scenario_result *ws,
          " 0 moves faster than the LB period can only be WS.\n");
 }
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
   int workers = parse_arg(argc, argv, 1, DEFAULT_WORKERS);
   int iterations = parse_arg(argc, argv, 2, DEFAULT_ITERATIONS);
