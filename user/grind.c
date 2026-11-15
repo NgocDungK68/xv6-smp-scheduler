@@ -13,7 +13,8 @@
 #include "kernel/riscv.h"
 
 // from FreeBSD.
-int do_rand(unsigned long *ctx)
+int
+do_rand(unsigned long *ctx)
 {
   /*
    * Compute x = (7^5 * x) mod (2^31 - 1)
@@ -40,9 +41,14 @@ int do_rand(unsigned long *ctx)
 
 unsigned long rand_next = 1;
 
-int rand(void) { return (do_rand(&rand_next)); }
+int
+rand(void)
+{
+  return (do_rand(&rand_next));
+}
 
-void go(int which_child)
+void
+go(int which_child)
 {
   int fd = -1;
   static char buf[999];
@@ -287,7 +293,8 @@ void go(int which_child)
   }
 }
 
-void iter()
+void
+iter()
 {
   unlink("a");
   unlink("b");
@@ -326,7 +333,8 @@ void iter()
   exit(0);
 }
 
-int main()
+int
+main()
 {
   while (1) {
     int pid = fork();

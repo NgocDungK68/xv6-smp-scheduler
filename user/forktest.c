@@ -7,9 +7,14 @@
 
 #define N 1000
 
-void print(const char *s) { write(1, s, strlen(s)); }
+void
+print(const char *s)
+{
+  write(1, s, strlen(s));
+}
 
-void forktest(void)
+void
+forktest(void)
 {
   int n, pid;
 
@@ -43,7 +48,8 @@ void forktest(void)
   print("fork test OK\n");
 }
 
-int main(void)
+int
+main(void)
 {
   forktest();
   exit(0);

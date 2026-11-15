@@ -9,7 +9,8 @@
 
 char buf[BUFSZ];
 
-int main(int argc, char **argv)
+int
+main(int argc, char **argv)
 {
   char *s = argv[0];
 
