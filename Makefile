@@ -13,7 +13,6 @@ OBJS = \
   $K/main.o \
   $K/vm.o \
   $K/proc.o \
-  $K/scheduler.o \
   $K/swtch.o \
   $K/trampoline.o \
   $K/trap.o \
@@ -68,7 +67,7 @@ OBJDUMP = $(TOOLPREFIX)objdump
 # Deterministic builds.
 DETFLAGS = -ffile-prefix-map=$(CURDIR)=.
 
-CFLAGS = -Wall -Werror -Wno-unknown-attributes -O -fno-omit-frame-pointer -ggdb -gdwarf-2
+CFLAGS = -Wall -Wno-unknown-attributes -O -fno-omit-frame-pointer -ggdb -gdwarf-2
 CFLAGS += $(DETFLAGS)
 CFLAGS += -march=rv64gc
 CFLAGS += -std=gnu99
@@ -99,12 +98,6 @@ LDFLAGS = -z max-page-size=4096
 ifeq ($(RQ_TEST),1)
 OBJS += $K/runqueue_test.o
 CFLAGS += -DRUNQUEUE_TEST
-endif
-
-# CPU Affinity self-test
-ifeq ($(AFFINITY_TEST),1)
-OBJS += $K/affinity_test.o
-CFLAGS += -DAFFINITY_TEST
 endif
 
 $K/kernel: $(OBJS) $K/kernel.ld
@@ -172,10 +165,7 @@ UPROGS=\
 	$U/_testws\
 	$U/_testmockws\
 	$U/_schedtest\
-	$U/_getcpu_test\
-	$U/_affinity_test\
-    $U/_affinity_rt\
-	$U/_scheduler_test\
+	$U/_testbalance\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

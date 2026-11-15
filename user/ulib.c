@@ -8,8 +8,7 @@
 //
 // wrapper so that it's OK if main() does not call exit().
 //
-void
-start(int argc, char **argv)
+void start(int argc, char **argv)
 {
   int r;
   extern int main(int argc, char **argv);
@@ -17,8 +16,7 @@ start(int argc, char **argv)
   exit(r);
 }
 
-char *
-strcpy(char *s, const char *t)
+char *strcpy(char *s, const char *t)
 {
   char *os;
 
@@ -28,16 +26,14 @@ strcpy(char *s, const char *t)
   return os;
 }
 
-int
-strcmp(const char *p, const char *q)
+int strcmp(const char *p, const char *q)
 {
   while (*p && *p == *q)
     p++, q++;
   return (uchar)*p - (uchar)*q;
 }
 
-uint
-strlen(const char *s)
+uint strlen(const char *s)
 {
   int n;
 
@@ -46,8 +42,7 @@ strlen(const char *s)
   return n;
 }
 
-void *
-memset(void *dst, int c, uint n)
+void *memset(void *dst, int c, uint n)
 {
   char *cdst = (char *)dst;
   int i;
@@ -57,8 +52,7 @@ memset(void *dst, int c, uint n)
   return dst;
 }
 
-char *
-strchr(const char *s, char c)
+char *strchr(const char *s, char c)
 {
   for (; *s; s++)
     if (*s == c)
@@ -66,8 +60,7 @@ strchr(const char *s, char c)
   return 0;
 }
 
-char *
-gets(char *buf, int max)
+char *gets(char *buf, int max)
 {
   int i, cc;
   char c;
@@ -84,8 +77,7 @@ gets(char *buf, int max)
   return buf;
 }
 
-int
-stat(const char *n, struct stat *st)
+int stat(const char *n, struct stat *st)
 {
   int fd;
   int r;
@@ -98,8 +90,7 @@ stat(const char *n, struct stat *st)
   return r;
 }
 
-int
-atoi(const char *s)
+int atoi(const char *s)
 {
   int n;
 
@@ -109,8 +100,7 @@ atoi(const char *s)
   return n;
 }
 
-void *
-memmove(void *vdst, const void *vsrc, int n)
+void *memmove(void *vdst, const void *vsrc, int n)
 {
   char *dst;
   const char *src;
@@ -129,8 +119,7 @@ memmove(void *vdst, const void *vsrc, int n)
   return vdst;
 }
 
-int
-memcmp(const void *s1, const void *s2, uint n)
+int memcmp(const void *s1, const void *s2, uint n)
 {
   const char *p1 = s1, *p2 = s2;
   while (n-- > 0) {
@@ -143,20 +132,11 @@ memcmp(const void *s1, const void *s2, uint n)
   return 0;
 }
 
-void *
-memcpy(void *dst, const void *src, uint n)
+void *memcpy(void *dst, const void *src, uint n)
 {
   return memmove(dst, src, n);
 }
 
-char *
-sbrk(int n)
-{
-  return sys_sbrk(n, SBRK_EAGER);
-}
+char *sbrk(int n) { return sys_sbrk(n, SBRK_EAGER); }
 
-char *
-sbrklazy(int n)
-{
-  return sys_sbrk(n, SBRK_LAZY);
-}
+char *sbrklazy(int n) { return sys_sbrk(n, SBRK_LAZY); }
