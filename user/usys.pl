@@ -41,6 +41,7 @@ entry("dup");
 entry("getpid");
 entry("getcpu");
 entry("sched_setaffinity");
+entry("sched_getstats");
 entry("sbrk");
 entry("pause");
 entry("uptime");

@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "schedstats.h"
 
 uint64
 sys_exit(void)
@@ -45,6 +46,30 @@ sys_sched_setaffinity(void)
 
   // Update the process CPU affinity mask.
   return ksetaffinity(pid, (uint)mask);
+}
+
+// Return a snapshot of the scheduler statistics.
+uint64
+sys_sched_getstats(void)
+{
+  uint64 addr;
+  int size;
+
+  argaddr(0, &addr);
+  argint(1, &size);
+
+  if (addr == 0 || size != (int)sizeof(struct sched_stats))
+    return -1;
+
+  struct sched_stats stats;
+  schedstats_read(&stats);
+
+  struct proc *p = myproc();
+
+  if (copyout(p->pagetable, p->sz, addr, (char *)&stats, sizeof(stats)) < 0)
+    return -1;
+
+  return 0;
 }
 
 uint64

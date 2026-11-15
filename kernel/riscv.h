@@ -95,9 +95,17 @@ w_sip(uint64 x)
   asm volatile("csrw sip, %0" : : "r"(x));
 }
 
+static inline void
+c_sip(uint64 mask)
+{
+  asm volatile("csrc sip, %0" : : "rK"(mask) : "memory");
+}
+
 // Supervisor Interrupt Enable
 #define SIE_SEIE (1L << 9) // external
 #define SIE_STIE (1L << 5) // timer
+#define SIE_SSIE (1L << 1) // software
+#define SIP_SSIP (1L << 1) // supervisor software interrupt pending
 static inline uint64
 r_sie()
 {
