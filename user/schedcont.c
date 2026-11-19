@@ -15,10 +15,10 @@
 #include "kernel/stat.h"
 #include "user/user.h"
 
-#define MAX_WORKERS 8
-#define DEFAULT_WORKERS 4
-#define DEFAULT_ROUNDS 100
-#define MAX_ROUNDS 2000
+#define MAX_WORKERS           8
+#define DEFAULT_WORKERS       4
+#define DEFAULT_ROUNDS        100
+#define MAX_ROUNDS            2000
 #define CHILD_BURN_ITERATIONS 3000
 
 static void
@@ -162,15 +162,16 @@ main(int argc, char *argv[])
   if (argc > 3)
     rounds = atoi(argv[3]);
 
-  if (workers < 1 || workers > MAX_WORKERS ||
-      rounds < 1 || rounds > MAX_ROUNDS) {
+  if (workers < 1 || workers > MAX_WORKERS || rounds < 1 ||
+      rounds > MAX_ROUNDS) {
     usage();
     exit(1);
   }
 
   printf("HSC: mode=%s workers=%d rounds=%d\n",
          mode_pingpong ? "pingpong" : "fork", workers, rounds);
-  printf("HSC: one operation = one fork/wait pair or one ping-pong round-trip\n");
+  printf(
+    "HSC: one operation = one fork/wait pair or one ping-pong round-trip\n");
 
   start_ticks = uptime();
 
@@ -182,8 +183,8 @@ main(int argc, char *argv[])
       break;
     }
     if (pid == 0) {
-      int rc = mode_pingpong ? run_pingpong_worker(rounds)
-                             : run_fork_worker(rounds);
+      int rc =
+        mode_pingpong ? run_pingpong_worker(rounds) : run_fork_worker(rounds);
       exit(rc == 0 ? 0 : 1);
     }
     started++;
@@ -203,15 +204,17 @@ main(int argc, char *argv[])
 
   elapsed = uptime() - start_ticks;
 
-  printf("HSC result: workers_started=%d workers_completed=%d failed_workers=%d\n",
-         started, completed, failed_workers);
+  printf(
+    "HSC result: workers_started=%d workers_completed=%d failed_workers=%d\n",
+    started, completed, failed_workers);
   printf("HSC result: planned_operations=%d elapsed_ticks=%d\n",
          started * rounds, elapsed);
   if (elapsed > 0)
     printf("HSC result: operations_per_tick=%d\n",
            (started * rounds) / elapsed);
   else
-    printf("HSC result: elapsed time is below one timer tick; increase rounds\n");
+    printf(
+      "HSC result: elapsed time is below one timer tick; increase rounds\n");
 
   if (started != workers || completed != started || failed_workers != 0)
     exit(1);
