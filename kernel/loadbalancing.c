@@ -204,8 +204,5 @@ loadbalance_reset_stats(void)
   lb_stats.affinity_skips = 0;
   lb_stats.stale_candidates = 0;
   lb_stats.rate_limited = 0;
-  lb_has_run = 0;
-  lb_last_tick = 0;
-  lb_pair_cursor = 0;
   release(&lb_lock);
 }
