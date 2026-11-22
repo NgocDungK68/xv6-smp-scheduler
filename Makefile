@@ -178,6 +178,8 @@ UPROGS=\
 	$U/_scheduler_test\
         $U/_lostwake_test\
         $U/_lwstress\
+        $U/_affdyn\
+        $U/_affmig\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
