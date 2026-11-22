@@ -29,6 +29,7 @@ schedstats_read(struct sched_stats *out)
     out->ipi_sent[cpu] = ipisent(cpu);
     out->ipi_received[cpu] = ipireceived(cpu);
     out->wfi_waits[cpu] = sched_wfi_waits(cpu);
+    out->dispatches[cpu] = sched_dispatches(cpu);
 
     int n = rq_length(cpu);
     out->queued[cpu] = n < 0 ? 0 : n;

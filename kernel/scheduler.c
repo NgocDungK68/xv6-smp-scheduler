@@ -18,6 +18,7 @@ static int cpu_busy[NCPU];
 struct sched_idle_state {
   uint idle;
   uint64 waits;
+  uint64 dispatches;
 } __attribute__((aligned(64)));
 
 static struct sched_idle_state idle_state[NCPU];
@@ -89,6 +90,16 @@ sched_wfi_waits(int cpu_id)
     return 0;
 
   return __atomic_load_n(&idle_state[cpu_id].waits, __ATOMIC_RELAXED);
+}
+
+// Number of process dispatches performed by this CPU.
+uint64
+sched_dispatches(int cpu_id)
+{
+  if (cpu_id < 0 || cpu_id >= NCPU)
+    return 0;
+
+  return __atomic_load_n(&idle_state[cpu_id].dispatches, __ATOMIC_RELAXED);
 }
 
 // 1 if CPU is currently executing a process,
@@ -336,6 +347,8 @@ scheduler(void)
     p->state = RUNNING;
     c->proc = p;
     __atomic_store_n(&cpu_busy[id], 1, __ATOMIC_RELAXED);
+
+    __atomic_fetch_add(&idle_state[id].dispatches, 1, __ATOMIC_RELAXED);
 
     swtch(&c->context, &p->context);
 

@@ -190,6 +190,9 @@ ifeq ($(IPI),1)
 UPROGS += $U/_ipiwakeup
 endif
 
+UPROGS += $U/_schedmeasure
+UPROGS += $U/_schedstatstest
+
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
 

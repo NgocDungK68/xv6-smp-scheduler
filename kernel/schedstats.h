@@ -4,7 +4,8 @@
 #include "types.h"
 #include "param.h"
 
-#define SCHED_STATS_VERSION 1
+// User/kernel statistics ABI. This revision adds per-CPU dispatch counters.
+#define SCHED_STATS_VERSION 2
 
 #define SCHED_FEAT_IPI 1U
 #define SCHED_FEAT_WS  2U
@@ -30,6 +31,9 @@ struct sched_stats {
   uint64 ws_successes;
   uint64 lb_checks;
   uint64 lb_migrations;
+
+  // Number of process dispatches by each CPU, not all context switches.
+  uint64 dispatches[NCPU];
 };
 
 #endif

@@ -126,6 +126,7 @@ int             sched_can_migrate(struct proc *p, int src_cpu, int dst_cpu,
 void            sched_wake_cpu(int cpu_id);
 uint            sched_idle_mask(void);
 uint64          sched_wfi_waits(int cpu_id);
+uint64          sched_dispatches(int cpu_id);
 
 // schedstats.c
 void            schedstats_read(struct sched_stats *out);
