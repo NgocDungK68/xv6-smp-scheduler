@@ -31,6 +31,7 @@ main()
     rq_init();
     worksteal_init();
     loadbalance_init();
+    schedstats_init();
 
 #ifdef RUNQUEUE_TEST
     rq_selftest();

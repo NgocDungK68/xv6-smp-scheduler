@@ -6,6 +6,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "vm.h"
+#include "schedstats.h"
 
 uint64
 sys_exit(void)
@@ -134,4 +135,26 @@ sys_uptime(void)
   xticks = ticks;
   release(&tickslock);
   return xticks;
+}
+//
+uint64
+sys_sched_getstats(void)
+{
+  uint64 uaddr;
+  struct sched_stats_v2 st;
+  struct proc *p = myproc();
+
+  argaddr(0, &uaddr);
+  if (schedstats_collect(&st) < 0)
+    return -1;
+  if (copyout(p->pagetable, p->sz, uaddr, (char *)&st, sizeof(st)) < 0)
+    return -1;
+  return 0;
+}
+
+uint64
+sys_sched_resetstats(void)
+{
+  schedstats_reset();
+  return 0;
 }

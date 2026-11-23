@@ -46,3 +46,5 @@ entry("pause");
 entry("uptime");
 entry("sync");
 entry("setaffinity");
+entry("sched_getstats");
+entry("sched_resetstats");

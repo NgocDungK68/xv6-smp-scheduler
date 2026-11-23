@@ -51,3 +51,8 @@ void printf(const char *, ...) __attribute__((format(printf, 1, 2)));
 // umalloc.c
 void *malloc(uint);
 void free(void *);
+//sched
+struct sched_stats_v2; /* or include shared header */
+
+int sched_getstats(struct sched_stats_v2 *);
+int sched_resetstats(void);

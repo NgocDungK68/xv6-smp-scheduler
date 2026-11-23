@@ -32,6 +32,7 @@ OBJS = \
   $K/runqueue.o \
   $K/worksteal.o \
   $K/loadbalancing.o \
+  $K/schedstats.o \
   $K/scheduler.o
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
@@ -167,6 +168,8 @@ UPROGS=\
 	$U/_schedtest\
 	$U/_testbalance\
 	$U/_schedcont\
+	$U/_schedmeasure\
+	$U/_ws_lb_test\
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
