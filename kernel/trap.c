@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "ipi.h"
 
 struct spinlock tickslock;
 uint ticks;
@@ -179,11 +180,9 @@ clockintr()
   w_stimecmp(r_time() + 1000000);
 }
 
-// check if it's an external interrupt or software interrupt,
-// and handle it.
-// returns 2 if timer interrupt,
-// 1 if other device,
-// 0 if not recognized.
+// Check if it's an external, timer, or software interrupt.
+// Return 1 for device, 2 for timer, 3 for software IPI,
+// and 0 if the interrupt is not recognized.
 int
 devintr()
 {
@@ -211,9 +210,15 @@ devintr()
 
     return 1;
   } else if (scause == 0x8000000000000005L) {
-    // timer interrupt.
+    // Timer interrupt.
     clockintr();
     return 2;
+#ifdef IPI_WAKEUP
+  } else if (scause == 0x8000000000000001L) {
+    // Supervisor software interrupt.
+    ipiintr();
+    return 3;
+#endif
   } else {
     return 0;
   }

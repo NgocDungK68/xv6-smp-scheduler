@@ -5,6 +5,7 @@ struct file;
 struct inode;
 struct pipe;
 struct proc;
+struct sched_stats;
 struct spinlock;
 struct sleeplock;
 struct stat;
@@ -122,6 +123,13 @@ int             sched_cpu_busy(int cpu_id);
 int             sched_cpu_load(int cpu_id);
 int             sched_can_migrate(struct proc *p, int src_cpu, int dst_cpu,
                                   int *affinity_rejected);
+void            sched_wake_cpu(int cpu_id);
+uint            sched_idle_mask(void);
+uint64          sched_wfi_waits(int cpu_id);
+uint64          sched_dispatches(int cpu_id);
+
+// schedstats.c
+void            schedstats_read(struct sched_stats *out);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

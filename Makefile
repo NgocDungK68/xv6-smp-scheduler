@@ -33,7 +33,8 @@ OBJS = \
   $K/runqueue.o\
   $K/worksteal.o \
   $K/loadbalancing.o\
-  
+  $K/ipi.o \
+  $K/schedstats.o \
 
 # riscv64-unknown-elf- or riscv64-linux-gnu-
 # perhaps in /opt/riscv/bin
@@ -95,6 +96,14 @@ CFLAGS += -fno-pie -nopie
 endif
 
 LDFLAGS = -z max-page-size=4096
+
+# Enable supervisor software IPIs on QEMU ACLINT.
+ifeq ($(IPI),1)
+CFLAGS += -DIPI_WAKEUP
+QEMU_MACHINE = virt,aclint=on
+else
+QEMU_MACHINE = virt
+endif
 
 ifeq ($(RQ_TEST),1)
 OBJS += $K/runqueue_test.o
@@ -177,6 +186,13 @@ UPROGS=\
     $U/_affinity_rt\
 	$U/_scheduler_test\
 
+ifeq ($(IPI),1)
+UPROGS += $U/_ipiwakeup
+endif
+
+UPROGS += $U/_schedmeasure
+UPROGS += $U/_schedstatstest
+
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)
 
@@ -200,7 +216,7 @@ ifndef CPUS
 CPUS := 3
 endif
 
-QEMUOPTS = -machine virt -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
+QEMUOPTS = -machine $(QEMU_MACHINE) -bios none -kernel $K/kernel -m 128M -smp $(CPUS) -nographic
 QEMUOPTS += -global virtio-mmio.force-legacy=false
 QEMUOPTS += -drive file=fs.img,if=none,format=raw,id=x0
 QEMUOPTS += -device virtio-blk-device,drive=x0,bus=virtio-mmio-bus.0

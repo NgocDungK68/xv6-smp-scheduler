@@ -94,6 +94,7 @@ extern uint64 sys_dup(void);
 extern uint64 sys_getpid(void);
 extern uint64 sys_getcpu(void);
 extern uint64 sys_sched_setaffinity(void);
+extern uint64 sys_sched_getstats(void);
 extern uint64 sys_sbrk(void);
 extern uint64 sys_pause(void);
 extern uint64 sys_uptime(void);
@@ -123,6 +124,7 @@ static uint64 (*syscalls[])(void) = {
   [SYS_getpid]  = sys_getpid,
   [SYS_getcpu]  = sys_getcpu,
   [SYS_sched_setaffinity] = sys_sched_setaffinity,
+  [SYS_sched_getstats] = sys_sched_getstats,
   [SYS_sbrk]    = sys_sbrk,
   [SYS_pause]   = sys_pause,
   [SYS_uptime]  = sys_uptime,

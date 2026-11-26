@@ -271,6 +271,13 @@ rq_migrate_locked(int src_cpu, int dst_cpu, struct proc *p, int stealing,
 
 unlock:
   rq_unlock_pair(src_cpu, dst_cpu);
+
+#ifdef IPI_WAKEUP
+  // Notify the destination after a successful migration.
+  if (result == RQ_STEAL_OK)
+    sched_wake_cpu(dst_cpu);
+#endif
+
   return result;
 }
 

@@ -32,6 +32,11 @@ kvmmake(void)
   // virtio mmio disk interface
   kvmmap(kpgtbl, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
+#ifdef IPI_WAKEUP
+  // Supervisor software interrupt registers.
+  kvmmap(kpgtbl, ACLINT_SSWI, ACLINT_SSWI, PGSIZE, PTE_R | PTE_W);
+#endif
+
   // PLIC
   kvmmap(kpgtbl, PLIC, PLIC, 0x4000000, PTE_R | PTE_W);
 

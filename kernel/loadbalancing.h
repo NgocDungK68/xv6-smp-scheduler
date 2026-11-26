@@ -10,7 +10,7 @@
 // 1: scheduler() prints "LOAD BALANCE: migrated N process(es)" on every
 // migration. Set to 0 (or compile with -DLB_VERBOSE=0) to silence it.
 #ifndef LB_VERBOSE
-#define LB_VERBOSE 1
+#define LB_VERBOSE 0
 #endif
 
 struct loadbalance_stats {

@@ -1,6 +1,7 @@
 #define SBRK_ERROR ((char *)-1)
 
 struct stat;
+struct sched_stats;
 
 // system calls
 int fork(void);
@@ -23,6 +24,7 @@ int dup(int);
 int getpid(void);
 int getcpu(void);
 int sched_setaffinity(int pid, unsigned int mask);
+int sched_getstats(struct sched_stats *out, int size);
 char *sys_sbrk(int, int);
 int pause(int);
 int uptime(void);

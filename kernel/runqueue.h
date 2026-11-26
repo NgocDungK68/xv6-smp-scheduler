@@ -5,17 +5,11 @@
 
 struct proc;
 
-// Per-CPU FIFO queues store process pointers only.
-// Process state, affinity, and queue ownership are managed by the scheduler.
+// A queue holds RUNNABLE processes waiting for a CPU.
+// The running process is not in the queue; its CPU is
+// tracked by sched_cpu_busy().
 //
-// A queue holds only RUNNABLE processes that are WAITING for a CPU. The
-// process a CPU is executing right now is not in its queue; the scheduler
-// records that with rq_set_running(). The "load" of a CPU is therefore
-//     load = queued processes + (1 if the CPU is executing a process)
-//
-// Lock order (must be respected everywhere):
-//     wait_lock -> p->lock -> runqueue lock(s) in ascending CPU id
-// Nothing may take a p->lock while holding a runqueue lock.
+// CPU load = queued processes + running process.
 
 // Result codes of rq_steal_runnable().
 #define RQ_STEAL_OK         0  // p moved from src to dst

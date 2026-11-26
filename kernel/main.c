@@ -6,6 +6,7 @@
 #include "defs.h"
 #include "worksteal.h"
 #include "loadbalancing.h"
+#include "ipi.h"
 
 volatile static int started = 0;
 
@@ -35,8 +36,9 @@ main()
 #ifdef RUNQUEUE_TEST
     rq_selftest();
 #endif
-    trapinit();         // trap vectors
-    trapinithart();     // install kernel trap vector
+    trapinit();     // trap vectors
+    trapinithart(); // install kernel trap vector
+    ipiinithart();
     plicinit();         // set up interrupt controller
     plicinithart();     // ask PLIC for device interrupts
     binit();            // buffer cache
@@ -60,6 +62,7 @@ main()
     printk("hart %d starting\n", cpuid());
     kvminithart();  // turn on paging
     trapinithart(); // install kernel trap vector
+    ipiinithart();
     plicinithart(); // ask PLIC for device interrupts
     sched_cpu_online();
   }

@@ -7,11 +7,21 @@
 #include "runqueue.h"
 #include "worksteal.h"
 #include "loadbalancing.h"
+#include "ipi.h"
 
 // CPUs set their online bit once, after per-hart initialization.
 static uint online_mask;
 static uint placement_ticket;
 static int cpu_busy[NCPU];
+
+// Keep idle flags on separate cache lines to avoid false sharing.
+struct sched_idle_state {
+  uint idle;
+  uint64 waits;
+  uint64 dispatches;
+} __attribute__((aligned(64)));
+
+static struct sched_idle_state idle_state[NCPU];
 
 void
 sched_cpu_online(void)
@@ -30,6 +40,66 @@ uint
 sched_online_mask(void)
 {
   return __atomic_load_n(&online_mask, __ATOMIC_ACQUIRE);
+}
+
+// Notify an idle remote CPU that runnable work is available.
+void
+sched_wake_cpu(int cpu_id)
+{
+#ifdef IPI_WAKEUP
+  if (cpu_id < 0 || cpu_id >= NCPU)
+    return;
+
+  push_off();
+  int self = cpuid();
+
+  if (cpu_id != self && (sched_online_mask() & (1U << cpu_id)) != 0) {
+
+    // Paired with the idle CPU's publication and queue recheck.
+    __atomic_thread_fence(__ATOMIC_SEQ_CST);
+
+    if (__atomic_load_n(&idle_state[cpu_id].idle, __ATOMIC_SEQ_CST))
+      ipisend(cpu_id);
+  }
+
+  pop_off();
+#else
+  (void)cpu_id;
+#endif
+}
+
+// Return the CPUs currently waiting for interrupts.
+uint
+sched_idle_mask(void)
+{
+  uint mask = 0;
+
+  for (int cpu = 0; cpu < NCPU; cpu++) {
+    if (__atomic_load_n(&idle_state[cpu].idle, __ATOMIC_SEQ_CST))
+      mask |= 1U << cpu;
+  }
+
+  return mask;
+}
+
+// Return how many times a CPU has executed WFI.
+uint64
+sched_wfi_waits(int cpu_id)
+{
+  if (cpu_id < 0 || cpu_id >= NCPU)
+    return 0;
+
+  return __atomic_load_n(&idle_state[cpu_id].waits, __ATOMIC_RELAXED);
+}
+
+// Number of process dispatches performed by this CPU.
+uint64
+sched_dispatches(int cpu_id)
+{
+  if (cpu_id < 0 || cpu_id >= NCPU)
+    return 0;
+
+  return __atomic_load_n(&idle_state[cpu_id].dispatches, __ATOMIC_RELAXED);
 }
 
 // 1 if CPU is currently executing a process,
@@ -171,6 +241,10 @@ sched_enqueue(struct proc *p)
 
   p->rq_cpu = cpu_id;
   p->state = RUNNABLE;
+
+#ifdef IPI_WAKEUP
+  sched_wake_cpu(cpu_id);
+#endif
 }
 
 // Per-CPU process scheduler.
@@ -222,12 +296,28 @@ scheduler(void)
       // Local queue empty: try stealing work.
       worksteal_try(id, sched_online_mask());
 
-      // The stolen process is now in our local queue.
-      // Re-peek because the queue may have changed.
+      // Recheck the local queue after stealing.
       p = rq_peek_at(id, 0);
 
       if (p == 0) {
+#ifdef IPI_WAKEUP
+        // Keep interrupts disabled until WFI.
+        if (intr_get())
+          panic("scheduler: idle interrupts");
+
+        // Publish idle before the final queue check.
+        __atomic_store_n(&idle_state[id].idle, 1, __ATOMIC_SEQ_CST);
+
+        if (rq_length(id) == 0) {
+          __atomic_fetch_add(&idle_state[id].waits, 1, __ATOMIC_RELAXED);
+
+          asm volatile("wfi" ::: "memory");
+        }
+
+        __atomic_store_n(&idle_state[id].idle, 0, __ATOMIC_SEQ_CST);
+#else
         asm volatile("wfi");
+#endif
         continue;
       }
     }
@@ -257,6 +347,8 @@ scheduler(void)
     p->state = RUNNING;
     c->proc = p;
     __atomic_store_n(&cpu_busy[id], 1, __ATOMIC_RELAXED);
+
+    __atomic_fetch_add(&idle_state[id].dispatches, 1, __ATOMIC_RELAXED);
 
     swtch(&c->context, &p->context);
 
