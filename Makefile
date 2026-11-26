@@ -183,8 +183,12 @@ UPROGS=\
 	$U/_schedtest\
 	$U/_getcpu_test\
 	$U/_affinity_test\
-    $U/_affinity_rt\
+        $U/_affinity_rt\
 	$U/_scheduler_test\
+        $U/_lostwake_test\
+        $U/_lwstress\
+        $U/_affdyn\
+        $U/_affmig\
 
 ifeq ($(IPI),1)
 UPROGS += $U/_ipiwakeup
