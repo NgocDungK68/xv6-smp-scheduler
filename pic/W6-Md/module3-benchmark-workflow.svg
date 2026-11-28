@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
+<defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#475569"/></marker></defs>
+<rect width="100%" height="100%" fill="#fff"/>
+<text x="65" y="65" font-family="Arial" font-size="34" font-weight="bold" fill="#172554">Module 3 Benchmark Workflow</text>
+<text x="65" y="105" font-family="Arial" font-size="18" fill="#475569">Repeat the same workload and parameters for Stock xv6 and the modified SMP Scheduler.</text>
+<path d="M305,252 L355,252" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M605,252 L655,252" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M905,252 L955,252" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M1080,305 L1080,500" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M955,552 L905,552" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M655,552 L605,552" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M355,552 L305,552" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="55" y="200" width="250" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="180.0" y="238" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Select workload</text>
+<text x="180.0" y="270" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">testbalance / schedcont / benchmark</text>
+<rect x="355" y="200" width="250" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="480.0" y="238" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Configure run</text>
+<text x="480.0" y="270" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">CPUs, workers, iterations</text>
+<rect x="655" y="200" width="250" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="780.0" y="238" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Snapshot A</text>
+<text x="780.0" y="270" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">sched_getstats() before workload</text>
+<rect x="955" y="200" width="250" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="1080.0" y="238" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Run workload</text>
+<text x="1080.0" y="270" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Wait for workers to finish</text>
+<rect x="955" y="500" width="250" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="1080.0" y="538" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Snapshot B</text>
+<text x="1080.0" y="570" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">sched_getstats() after workload</text>
+<rect x="655" y="500" width="250" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="780.0" y="538" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Calculate deltas</text>
+<text x="780.0" y="570" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Counter B − Counter A</text>
+<rect x="355" y="500" width="250" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="480.0" y="538" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Save raw result</text>
+<text x="480.0" y="570" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Time, counters, PASS/FAIL</text>
+<rect x="55" y="500" width="250" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="180.0" y="538" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Analyze &amp; plot</text>
+<text x="180.0" y="570" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Execution time, speedup, counters</text>
+</svg>

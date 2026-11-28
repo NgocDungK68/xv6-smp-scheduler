@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1500" height="900" viewBox="0 0 1500 900">
+<defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#475569"/></marker></defs>
+<rect width="100%" height="100%" fill="#fff"/>
+<text x="65" y="65" font-family="Arial" font-size="34" font-weight="bold" fill="#172554">Work Stealing &amp; Load Balancing</text>
+<text x="65" y="105" font-family="Arial" font-size="18" fill="#475569">Two paths: idle CPU stealing and periodic queue balancing. Affinity is checked before migration.</text>
+<path d="M330,242 L390,242" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M660,242 L720,242" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M990,242 L1050,242" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M1230,295 L870,390" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M1020,442 L1080,442" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M330,662 L390,662" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M660,662 L720,662" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<path d="M1020,662 L1080,662" stroke="#475569" stroke-width="3" fill="none" marker-end="url(#arrow)"/>
+<rect x="60" y="190" width="270" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="195.0" y="228" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Idle CPU</text>
+<text x="195.0" y="260" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Local Run Queue is empty</text>
+<rect x="390" y="190" width="270" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="525.0" y="228" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Check candidates</text>
+<text x="525.0" y="260" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Online CPUs except destination</text>
+<rect x="720" y="190" width="270" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="855.0" y="228" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Select victim</text>
+<text x="855.0" y="260" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Most eligible runnable work</text>
+<rect x="1050" y="190" width="360" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="1230.0" y="228" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Check process</text>
+<text x="1230.0" y="260" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">RUNNABLE + affinity permits</text>
+<rect x="720" y="390" width="300" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="870.0" y="428" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Safe migration</text>
+<text x="870.0" y="460" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Transfer through Run Queue API</text>
+<rect x="1080" y="390" width="330" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="1245.0" y="428" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Destination CPU</text>
+<text x="1245.0" y="460" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Scheduler dispatches process</text>
+<rect x="60" y="610" width="270" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="195.0" y="648" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Periodic check</text>
+<text x="195.0" y="680" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Inspect per-CPU queue load</text>
+<rect x="390" y="610" width="270" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="525.0" y="648" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Imbalance test</text>
+<text x="525.0" y="680" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Compare against threshold</text>
+<rect x="720" y="610" width="300" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="870.0" y="648" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Choose migration</text>
+<text x="870.0" y="680" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Victim, destination, process</text>
+<rect x="1080" y="610" width="330" height="105" rx="18" fill="#eff6ff" stroke="#2563eb" stroke-width="3"/>
+<text x="1245.0" y="648" text-anchor="middle" font-family="Arial" font-size="21" font-weight="bold" fill="#1e3a8a">Safe migration</text>
+<text x="1245.0" y="680" text-anchor="middle" font-family="Arial" font-size="15" fill="#334155">Bound migrations per cycle</text>
+</svg>
