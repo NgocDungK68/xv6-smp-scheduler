@@ -6,7 +6,7 @@
 // Stress xv6 logging system by having several processes writing
 // concurrently to their own file (e.g., logstress f1 f2 f3 f4)
 
-#define BUFSZ 500
+#define BUFSZ 2000
 
 char buf[BUFSZ];
 
