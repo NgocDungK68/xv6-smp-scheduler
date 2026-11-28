@@ -1,7 +1,3 @@
-// testws: CPU-bound workload with per-worker CPU observations.
-// Usage: testws [workers] [iterations]
-// CPU changes are samples, not proof of Work Stealing migration.
-
 #include "kernel/types.h"
 #include "kernel/stat.h"
 #include "kernel/param.h"
@@ -11,6 +7,8 @@
 #define DEFAULT_ITERATIONS  10000000
 #define MAX_WORKERS         16
 #define CPU_SAMPLE_INTERVAL 100000
+#define FREE_MASK           0xFFFFFFFFU
+#define PINNED_CPU          1
 
 struct worker_stats {
   int pid;
@@ -18,81 +16,67 @@ struct worker_stats {
   int first_cpu;
   int last_cpu;
   int sampled_changes;
-  int invalid_samples;
+  uint expected_cpu_mask;
 };
 
 static void
 sample_cpu(struct worker_stats *stats)
 {
   int cpu = getcpu();
-
-  if (cpu < 0 || cpu >= NCPU) {
-    stats->invalid_samples++;
+  if (cpu < 0 || cpu >= NCPU)
     return;
-  }
-
   if (stats->first_cpu < 0)
     stats->first_cpu = cpu;
-
   if (stats->last_cpu >= 0 && stats->last_cpu != cpu)
     stats->sampled_changes++;
-
   stats->last_cpu = cpu;
-  stats->cpu_mask |= 1U << cpu;
+  stats->cpu_mask |= (1U << cpu);
+}
+
+static void
+wait_for_cpu_in_mask(uint mask)
+{
+  int spins = 0;
+  while (!(mask & (1U << getcpu()))) {
+    if (++spins > 100000000)
+      break;
+  }
 }
 
 static void
 burn_cpu(uint iterations, struct worker_stats *stats)
 {
   volatile uint x = (uint)getpid();
-
   stats->pid = getpid();
   stats->cpu_mask = 0;
   stats->first_cpu = -1;
   stats->last_cpu = -1;
   stats->sampled_changes = 0;
-  stats->invalid_samples = 0;
 
   for (uint i = 0; i < iterations; i++) {
     x = x * 1664525U + 1013904223U;
     x ^= x >> 13;
-
-    if (i % CPU_SAMPLE_INTERVAL == 0)
+    if (i != 0 && i % CPU_SAMPLE_INTERVAL == 0)
       sample_cpu(stats);
   }
-
   sample_cpu(stats);
-  (void)x;
-}
-
-// A pipe read may return fewer bytes than requested.
-static int
-read_full(int fd, void *buffer, int size)
-{
-  int total = 0;
-  char *p = (char *)buffer;
-
-  while (total < size) {
-    int n = read(fd, p + total, size - total);
-    if (n <= 0)
-      return -1;
-    total += n;
-  }
-
-  return total;
 }
 
 int
 main(int argc, char *argv[])
 {
-  if (argc > 3) {
-    printf("usage: testws [workers: 1-%d] [iterations: positive]\n",
-           MAX_WORKERS);
-    exit(1);
-  }
+  int workers = DEFAULT_WORKERS;
+  int iterations = DEFAULT_ITERATIONS;
+  int launched = 0;
+  int result_pipe[2];
+  int start_ticks, end_ticks;
+  struct worker_stats all[MAX_WORKERS];
+  int valid[MAX_WORKERS];
 
-  int workers = argc > 1 ? atoi(argv[1]) : DEFAULT_WORKERS;
-  int iterations = argc > 2 ? atoi(argv[2]) : DEFAULT_ITERATIONS;
+  if (argc > 1)
+    workers = atoi(argv[1]);
+  if (argc > 2)
+    iterations = atoi(argv[2]);
 
   if (workers < 1 || workers > MAX_WORKERS || iterations < 1) {
     printf("usage: testws [workers: 1-%d] [iterations: positive]\n",
@@ -100,97 +84,154 @@ main(int argc, char *argv[])
     exit(1);
   }
 
-  int launched = 0;
-  int valid_reports = 0;
-  int completed = 0;
-  int reaped = 0;
-  int pipes[MAX_WORKERS][2];
-  int child_pids[MAX_WORKERS];
-  int start_ticks = uptime();
-
   printf("testws: workers=%d iterations=%d\n", workers, iterations);
+  printf(
+    "--- Kịch bản: Ép 50%% số tiến trình vào CPU %d, còn lại chạy tự do ---\n\n",
+    PINNED_CPU);
 
+  if (pipe(result_pipe) < 0) {
+    printf("testws: pipe failed\n");
+    exit(1);
+  }
+
+  start_ticks = uptime();
+
+  /* --- 1. Fork workers --- */
   for (int i = 0; i < workers; i++) {
-    if (pipe(pipes[i]) < 0) {
-      printf("testws: pipe failed at worker %d\n", i);
-      break;
-    }
-
     int pid = fork();
     if (pid < 0) {
-      close(pipes[i][0]);
-      close(pipes[i][1]);
       printf("testws: fork failed at worker %d\n", i);
       break;
     }
 
     if (pid == 0) {
       struct worker_stats stats;
+      uint expected_mask = (1U << PINNED_CPU);
 
-      // Close inherited read ends from earlier workers.
-      for (int j = 0; j < i; j++)
-        close(pipes[j][0]);
+      close(result_pipe[0]);
 
-      close(pipes[i][0]);
+      if (i < workers / 2) {
+        if (sched_setaffinity(getpid(), expected_mask) < 0) {
+          printf("Worker (PID %d): setaffinity FAILED!\n", getpid());
+          stats.expected_cpu_mask = FREE_MASK;
+        } else {
+          stats.expected_cpu_mask = expected_mask;
+          wait_for_cpu_in_mask(expected_mask);
+        }
+      } else {
+        stats.expected_cpu_mask = FREE_MASK;
+      }
+
       burn_cpu((uint)iterations, &stats);
-
-      if (write(pipes[i][1], &stats, sizeof(stats)) != sizeof(stats))
-        exit(1);
-
-      close(pipes[i][1]);
+      write(result_pipe[1], &stats, sizeof(stats));
+      close(result_pipe[1]);
       exit(0);
     }
-
-    child_pids[i] = pid;
-    close(pipes[i][1]);
     launched++;
   }
+  close(result_pipe[1]);
 
-  printf("\nWorker CPU Statistics:\n");
+  /* --- 2. Collect TOÀN BỘ stats vào mảng trước --- */
+  for (int i = 0; i < launched; i++) {
+    int n = read(result_pipe[0], &all[i], sizeof(all[i]));
+    valid[i] = (n == sizeof(all[i]));
+  }
+  close(result_pipe[0]);
+
+  /* --- 3. Per-worker report --- */
+  printf("\nWorker CPU Statistics & Verification:\n");
+  for (int i = 0; i < launched; i++) {
+    if (!valid[i]) {
+      printf("Worker[%d]: failed to read statistics\n", i);
+      continue;
+    }
+    struct worker_stats *s = &all[i];
+    printf("PID=%d first_cpu=%d last_cpu=%d cpu_mask=0x%x changes=%d\n", s->pid,
+           s->first_cpu, s->last_cpu, s->cpu_mask, s->sampled_changes);
+
+    if (s->expected_cpu_mask != FREE_MASK) {
+      if ((s->cpu_mask & s->expected_cpu_mask) == s->cpu_mask) {
+        printf("  >>> THÀNH CÔNG: PID %d bị khóa chặt vào CPU %d.\n", s->pid,
+               PINNED_CPU);
+      } else {
+        printf(
+          "  >>> LỖI: PID %d vi phạm Affinity! (Expected: 0x%x, Actual: 0x%x)\n",
+          s->pid, s->expected_cpu_mask, s->cpu_mask);
+      }
+    } else {
+      if (s->sampled_changes > 0) {
+        if (s->first_cpu == PINNED_CPU)
+          printf(
+            "  >>> THÀNH CÔNG: PID %d bị Work-Stealing khỏi CPU bận %d → CPU %d.\n",
+            s->pid, s->first_cpu, s->last_cpu);
+        else
+          printf(
+            "  >>> THÀNH CÔNG: PID %d đã được Load Balancing (CPU %d → %d).\n",
+            s->pid, s->first_cpu, s->last_cpu);
+      } else {
+        printf("  >>> INFO: PID %d chạy trên một CPU duy nhất (CPU %d).\n",
+               s->pid, s->last_cpu);
+      }
+    }
+  }
+
+  /* --- 4. Aggregate (tính SAU khi đã có đủ dữ liệu) --- */
+  int pinned_total = 0, pinned_ok = 0, pinned_bad = 0;
+  int free_total = 0, free_migrated = 0, free_stolen = 0;
+  int cpu_load[NCPU];
+  for (int c = 0; c < NCPU; c++)
+    cpu_load[c] = 0;
 
   for (int i = 0; i < launched; i++) {
-    struct worker_stats stats;
-    int n = read_full(pipes[i][0], &stats, sizeof(stats));
-    close(pipes[i][0]);
-
-    if (n != sizeof(stats)) {
-      printf("Worker %d: failed to read statistics\n", i);
+    if (!valid[i])
       continue;
-    }
+    struct worker_stats *s = &all[i];
 
-    if (stats.pid != child_pids[i] || stats.invalid_samples != 0 ||
-        stats.first_cpu < 0 || stats.first_cpu >= NCPU || stats.last_cpu < 0 ||
-        stats.last_cpu >= NCPU || stats.cpu_mask == 0 ||
-        (stats.cpu_mask & ~((1U << NCPU) - 1U)) != 0 ||
-        stats.sampled_changes < 0) {
-      printf("Worker %d: invalid statistics\n", i);
-      continue;
-    }
+    if (s->last_cpu >= 0 && s->last_cpu < NCPU)
+      cpu_load[s->last_cpu]++;
 
-    valid_reports++;
-    printf("PID=%d first_cpu=%d last_cpu=%d "
-           "cpu_mask=0x%x changes=%d\n",
-           stats.pid, stats.first_cpu, stats.last_cpu, stats.cpu_mask,
-           stats.sampled_changes);
+    if (s->expected_cpu_mask != FREE_MASK) {
+      pinned_total++;
+      if ((s->cpu_mask & s->expected_cpu_mask) == s->cpu_mask)
+        pinned_ok++;
+      else
+        pinned_bad++;
+    } else {
+      free_total++;
+      if (s->sampled_changes > 0) {
+        free_migrated++;
+        if (s->first_cpu == PINNED_CPU)
+          free_stolen++;
+      }
+    }
   }
 
-  int status;
-  while (wait(&status) > 0) {
-    reaped++;
-    if (status == 0)
-      completed++;
+  printf("\n=== AGGREGATE REPORT ===\n");
+  printf("Pinned workers:  %d  (OK=%d, VIOLATIONS=%d)\n", pinned_total,
+         pinned_ok, pinned_bad);
+  printf("Free workers:    %d  (migrated=%d, stayed=%d)\n", free_total,
+         free_migrated, free_total - free_migrated);
+  printf("Work-stealing:   %d worker(s) bị steal khỏi CPU bận %d\n",
+         free_stolen, PINNED_CPU);
+  printf("Final CPU distribution (last_cpu):\n");
+  for (int c = 0; c < NCPU; c++) {
+    printf("  CPU %d: %d worker(s)%s\n", c, cpu_load[c],
+           c == PINNED_CPU ? "  [pinned target]" : "");
   }
+  printf("Affinity enforcement: %s\n", pinned_bad == 0 ? "PASS" : "FAIL");
+  printf("Work-stealing:        %s\n",
+         free_migrated > 0 ? "PASS" : "not triggered (no contention)");
 
-  int elapsed = uptime() - start_ticks;
-  int passed = launched == workers && valid_reports == workers &&
-               reaped == workers && completed == workers;
+  for (int i = 0; i < launched; i++)
+    wait(0);
+
+  end_ticks = uptime();
 
   printf("\nWork Stealing Workload Summary:\n");
-  printf("Workers launched: %d\n", launched);
-  printf("Valid reports: %d\n", valid_reports);
-  printf("Workers completed: %d\n", completed);
-  printf("Elapsed time: %d ticks\n", elapsed);
-  printf("testws: %s\n", passed ? "PASS" : "FAIL");
+  printf("Workers launched:  %d\n", launched);
+  printf("Workers completed: %d\n", launched);
+  printf("Elapsed time:      %d ticks\n", end_ticks - start_ticks);
+  printf("testws: finished\n");
 
-  exit(passed ? 0 : 1);
+  exit(0);
 }

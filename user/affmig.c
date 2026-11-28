@@ -2,14 +2,12 @@
 #include "kernel/types.h"
 #include "user/user.h"
 
-#define WORKERS 3
-#define ROUNDS 40
-#define NMASKS 7
+#define WORKERS   3
+#define ROUNDS    40
+#define NMASKS    7
 #define TEST_CPUS 4
 
-static uint masks[NMASKS] = {
-  0x1, 0x2, 0x4, 0x8, 0x3, 0xC, 0xF
-};
+static uint masks[NMASKS] = {0x1, 0x2, 0x4, 0x8, 0x3, 0xC, 0xF};
 
 struct result {
   int round;
@@ -20,8 +18,7 @@ struct result {
 static int
 allowed(uint mask, int cpu)
 {
-  return cpu >= 0 && cpu < TEST_CPUS &&
-         (mask & (1U << cpu)) != 0;
+  return cpu >= 0 && cpu < TEST_CPUS && (mask & (1U << cpu)) != 0;
 }
 
 static void
@@ -155,8 +152,7 @@ main(void)
       }
 
       if (r.round != round || !r.passed) {
-        printf("AFFINITY FAIL: worker=%d round=%d cpu=%d\n",
-               i, round, r.cpu);
+        printf("AFFINITY FAIL: worker=%d round=%d cpu=%d\n", i, round, r.cpu);
         failed++;
         stopped = 1;
       } else {
@@ -170,8 +166,7 @@ main(void)
     }
 
     if ((round + 1) % 10 == 0) {
-      printf("Progress: %d/%d rounds, checks=%d\n",
-             round + 1, ROUNDS, passed);
+      printf("Progress: %d/%d rounds, checks=%d\n", round + 1, ROUNDS, passed);
     }
   }
 
@@ -190,15 +185,12 @@ main(void)
   }
 
   printf("\n=== FINAL SUMMARY ===\n");
-  printf("Affinity checks: %d/%d\n",
-         passed, WORKERS * ROUNDS);
+  printf("Affinity checks: %d/%d\n", passed, WORKERS * ROUNDS);
   printf("Failures: %d\n", failed);
-  printf("Workers completed: %d/%d\n",
-         completed, WORKERS);
+  printf("Workers completed: %d/%d\n", completed, WORKERS);
   printf("Observed CPU changes: %d\n", cpu_changes);
 
-  int ok = !stopped && failed == 0 &&
-           passed == WORKERS * ROUNDS &&
+  int ok = !stopped && failed == 0 && passed == WORKERS * ROUNDS &&
            completed == WORKERS;
 
   printf("Affinity: %s\n", ok ? "PASS" : "FAIL");

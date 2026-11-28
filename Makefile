@@ -183,12 +183,12 @@ UPROGS=\
 	$U/_schedtest\
 	$U/_getcpu_test\
 	$U/_affinity_test\
-        $U/_affinity_rt\
+    $U/_affinity_rt\
 	$U/_scheduler_test\
-        $U/_lostwake_test\
-        $U/_lwstress\
-        $U/_affdyn\
-        $U/_affmig\
+    $U/_lostwake_test\
+    $U/_lwstress\
+    $U/_affdyn\
+    $U/_affmig\
 
 ifeq ($(IPI),1)
 UPROGS += $U/_ipiwakeup
@@ -196,6 +196,9 @@ endif
 
 UPROGS += $U/_schedmeasure
 UPROGS += $U/_schedstatstest
+# Module 3 tests and benchmarks
+UPROGS += $U/_testbalance
+UPROGS += $U/_schedcont
 
 fs.img: mkfs/mkfs README $(UPROGS)
 	mkfs/mkfs fs.img README $(UPROGS)

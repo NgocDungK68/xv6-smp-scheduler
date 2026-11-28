@@ -3,7 +3,7 @@
 #include "user/user.h"
 
 #define TEST_ROUNDS 100
-#define TEST_CPUS 4
+#define TEST_CPUS   4
 
 static int
 cpu_allowed(unsigned int mask, int cpu)
@@ -17,9 +17,7 @@ cpu_allowed(unsigned int mask, int cpu)
 static int
 test_dynamic_affinity(void)
 {
-  unsigned int masks[] = {
-    0x1, 0x2, 0x4, 0x8, 0x3, 0xC, 0xF
-  };
+  unsigned int masks[] = {0x1, 0x2, 0x4, 0x8, 0x3, 0xC, 0xF};
 
   int total = sizeof(masks) / sizeof(masks[0]);
   int passed = 0;
@@ -42,22 +40,19 @@ test_dynamic_affinity(void)
       int cpu = getcpu();
 
       if (!cpu_allowed(mask, cpu)) {
-        printf("FAIL: mask=%x cpu=%d round=%d\n",
-               mask, cpu, j);
+        printf("FAIL: mask=%x cpu=%d round=%d\n", mask, cpu, j);
         valid = 0;
         break;
       }
     }
 
     if (valid) {
-      printf("PASS: mask=%x, %d observations\n",
-             mask, TEST_ROUNDS);
+      printf("PASS: mask=%x, %d observations\n", mask, TEST_ROUNDS);
       passed++;
     }
   }
 
-  printf("Dynamic affinity: %d/%d passed\n",
-         passed, total);
+  printf("Dynamic affinity: %d/%d passed\n", passed, total);
 
   return passed == total;
 }
