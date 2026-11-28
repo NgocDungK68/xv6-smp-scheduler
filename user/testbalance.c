@@ -1,6 +1,7 @@
 #include "kernel/types.h"
 #include "kernel/param.h"
 #include "kernel/fcntl.h"
+#include "kernel/schedstats.h"
 #include "user/user.h"
 
 #define DEFAULT_WORKERS     8
@@ -57,6 +58,15 @@ struct scenario_result {
   int sum_latency;
   uint spread_mask;
   int failed;
+  // Scheduler Statistics API V2: deltas over the workload window.
+  int stats_ok;
+  uint features;
+  int d_ws_searches;
+  int d_ws_attempts;
+  int d_ws_successes;
+  int d_lb_checks;
+  int d_lb_migrations;
+  int d_dispatch[NCPU];
 };
 
 // Hàm tự chế thay thế cho sleep() bị thiếu ở kernel
@@ -68,6 +78,33 @@ custom_sleep(int wait_ticks)
   while (uptime() - start < wait_ticks) {
     // Chờ chủ động (busy-wait)
   }
+}
+
+// Read one scheduler-stats snapshot and validate version/size (API V2).
+static int
+read_stats(struct sched_stats *s)
+{
+  if (sched_getstats(s, sizeof(*s)) < 0 || s->version != SCHED_STATS_VERSION ||
+      s->size != sizeof(*s)) {
+    printf("testbalance: failed to get scheduler stats\n");
+    return -1;
+  }
+  return 0;
+}
+
+// Counters are cumulative since boot: store after - before.
+static void
+fill_deltas(struct scenario_result *res, const struct sched_stats *a,
+            const struct sched_stats *b)
+{
+  res->features = b->features;
+  res->d_ws_searches = (int)(b->ws_searches - a->ws_searches);
+  res->d_ws_attempts = (int)(b->ws_attempts - a->ws_attempts);
+  res->d_ws_successes = (int)(b->ws_successes - a->ws_successes);
+  res->d_lb_checks = (int)(b->lb_checks - a->lb_checks);
+  res->d_lb_migrations = (int)(b->lb_migrations - a->lb_migrations);
+  for (int i = 0; i < NCPU; i++)
+    res->d_dispatch[i] = (int)(b->dispatches[i] - a->dispatches[i]);
 }
 
 typedef char report_batch_fits_in_pipe
@@ -281,11 +318,18 @@ run_scenario(int mode, int workers, int iterations, int online_cpus,
   int start_ticks;
   int end_ticks;
   int widen_tick;
+  struct sched_stats st_before;
+  struct sched_stats st_after;
+  int stats_ok = 1;
 
   memset(res, 0, sizeof(*res));
   res->mode = mode;
   res->min_latency = -1;
   unlink(STOP_FILE);
+
+  // Fail fast, before any child exists, if the stats API is unusable.
+  if (read_stats(&st_before) < 0)
+    exit(1);
 
   if (pipe(result_pipe) < 0) {
     printf("testbalance: result pipe failed\n");
@@ -408,6 +452,10 @@ run_scenario(int mode, int workers, int iterations, int online_cpus,
     source_pids[source_launched++] = pid;
   }
 
+  // Snapshot "before": anchors are settled, sources are still blocked.
+  if (read_stats(&st_before) < 0)
+    stats_ok = 0;
+
   close(source_start[0]);
   if (source_launched > 0) {
     char tokens[MAX_SOURCE_WORKERS];
@@ -485,6 +533,13 @@ run_scenario(int mode, int workers, int iterations, int online_cpus,
   }
   close(result_pipe[0]);
 
+  // Snapshot "after": every source worker has reported.
+  if (stats_ok && read_stats(&st_after) < 0)
+    stats_ok = 0;
+  if (stats_ok)
+    fill_deltas(res, &st_before, &st_after);
+  res->stats_ok = stats_ok;
+
   if (mode == MODE_PERIODIC_LB && !stop_sent)
     request_stop();
 
@@ -514,47 +569,79 @@ run_scenario(int mode, int workers, int iterations, int online_cpus,
     printf("anchor placement mismatches: %d\n", anchor_placement_failures);
   printf("elapsed ticks (diagnostic only): %d\n", end_ticks - start_ticks);
 
+  if (stats_ok) {
+    printf("scheduler counters (delta over workload, schedstats v%d,"
+           " features=0x%x):\n",
+           SCHED_STATS_VERSION, res->features);
+    printf("  ws_searches=%d ws_attempts=%d ws_successes=%d\n",
+           res->d_ws_searches, res->d_ws_attempts, res->d_ws_successes);
+    printf("  lb_checks=%d lb_migrations=%d\n", res->d_lb_checks,
+           res->d_lb_migrations);
+    printf("  dispatches:");
+    for (int c = 0; c < online_cpus; c++)
+      printf(" cpu%d=%d", c, res->d_dispatch[c]);
+    printf("\n");
+  } else {
+    printf("scheduler counters: unavailable\n");
+  }
+
   if (mode == MODE_AFFINITY) {
     printf("expected: every source cpu_mask equals 0x%x; idle WS and"
            " periodic LB must both respect affinity\n",
            source_mask);
     printf("RESULT: %s\n", affinity_violations == 0 ? "PASS" : "FAIL");
+  } else if (!stats_ok) {
+    printf("RESULT: FAIL - cannot verify WS/LB without scheduler stats\n");
+    expectation_failed = 1;
   } else if (mode == MODE_IDLE_WS) {
-    if (res->moved == 0) {
-      printf("RESULT: FAIL - nothing migrated although CPUs were idle: idle"
-             " WS is off/broken or the widened mask is ignored\n");
+    // Proof of Work Stealing = ws_successes increased. getcpu() changes
+    // alone are only supporting evidence.
+    if (!(res->features & SCHED_FEAT_WS)) {
+      printf("RESULT: FAIL - SCHED_FEAT_WS is not enabled in features\n");
       expectation_failed = 1;
-    } else if (res->min_latency <= FAST_TICKS) {
-      printf("RESULT: PASS - first migration %d tick(s) after widening with"
-             " idle CPUs available: event-triggered, consistent with idle"
-             " WS\n",
-             res->min_latency);
+    } else if (res->d_ws_successes == 0) {
+      printf("RESULT: FAIL - ws_successes did not increase although CPUs were"
+             " idle (workers that changed CPU: %d/%d): idle WS did not"
+             " steal\n",
+             res->moved, source_launched);
+      expectation_failed = 1;
     } else {
-      printf("RESULT: WARN - first migration only %d ticks after widening"
-             " despite idle CPUs: looks time-triggered (LB); idle WS did not"
-             " react promptly\n",
-             res->min_latency);
+      printf("RESULT: PASS - ws_successes +%d (workers that changed CPU:"
+             " %d/%d)\n",
+             res->d_ws_successes, res->moved, source_launched);
+      if (res->moved > 0 && res->min_latency > FAST_TICKS)
+        printf("NOTE: first observed move came %d ticks after widening;"
+               " idle WS did not react promptly\n",
+               res->min_latency);
     }
   } else {
-    if (res->moved == 0) {
-      printf("RESULT: FAIL - no source worker migrated within this run: LB"
-             " did not fire (increase iterations) or is not implemented\n");
+    // Proof of Load Balancing = lb_migrations increased. If only
+    // ws_successes grew, the moves were Work Stealing, not LB.
+    if (!(res->features & SCHED_FEAT_LB)) {
+      printf("RESULT: FAIL - SCHED_FEAT_LB is not enabled in features\n");
+      expectation_failed = 1;
+    } else if (res->d_lb_migrations == 0) {
+      printf("RESULT: FAIL - lb_migrations did not increase (delta=0)."
+             " workers that changed CPU: %d/%d, ws_successes delta=%d,"
+             " lb_checks delta=%d: %s\n",
+             res->moved, source_launched, res->d_ws_successes, res->d_lb_checks,
+             res->d_ws_successes > 0
+               ? "moves were done by Work Stealing, LB did not migrate"
+               : "LB did not fire (increase iterations) or is not implemented");
       expectation_failed = 1;
     } else {
-      printf("RESULT: PASS - %d source worker(s) migrated while every"
-             " non-source CPU stayed busy, so idle WS was not eligible:"
-             " attributable to periodic LB (first move after %d ticks)\n",
-             res->moved, res->min_latency);
-      if (res->min_latency <= FAST_TICKS)
-        printf("NOTE: first move was within %d tick(s); either the LB period"
-               " is that short or something other than LB moved work -"
-               " check the kernel log\n",
-               FAST_TICKS);
+      printf("RESULT: PASS - lb_migrations +%d (workers that changed CPU:"
+             " %d/%d)\n",
+             res->d_lb_migrations, res->moved, source_launched);
+      if (res->d_ws_successes > 0)
+        printf("NOTE: ws_successes also grew by %d; WS and LB overlap in this"
+               " run, LB is proven only by the lb_migrations counter\n",
+               res->d_ws_successes);
     }
   }
 
   harness_failed =
-    !(affinity_violations == 0 && anchor_placement_failures == 0 &&
+    !(stats_ok && affinity_violations == 0 && anchor_placement_failures == 0 &&
       pin_failures == 0 && affinity_update_failures == 0 &&
       source_launched == workers &&
       (mode != MODE_PERIODIC_LB ||
@@ -584,9 +671,21 @@ print_comparison(const struct scenario_result *ws,
   print_latency(lb);
   printf("\n");
 
-  if (ws->moved == 0 || lb->moved == 0) {
-    printf("VERDICT: INCONCLUSIVE - %s showed no migration, so there is"
-           " nothing to compare\n",
+  printf("counters:  WS scenario ws_successes=%d lb_migrations=%d | LB"
+         " scenario ws_successes=%d lb_migrations=%d\n",
+         ws->d_ws_successes, ws->d_lb_migrations, lb->d_ws_successes,
+         lb->d_lb_migrations);
+
+  if (!ws->stats_ok || !lb->stats_ok) {
+    printf("VERDICT: INCONCLUSIVE - scheduler stats unavailable\n");
+  } else if (ws->d_ws_successes == 0 || lb->d_lb_migrations == 0) {
+    printf("VERDICT: INCONCLUSIVE - %s counter did not increase, so the"
+           " mechanism was not demonstrated\n",
+           ws->d_ws_successes == 0 ? "ws_successes (idle-ws)"
+                                   : "lb_migrations (periodic-lb)");
+  } else if (ws->moved == 0 || lb->moved == 0) {
+    printf("VERDICT: INCONCLUSIVE - %s showed no sampled CPU change, so"
+           " there is no timing to compare (counters did increase)\n",
            ws->moved == 0 ? "idle-ws" : "periodic-lb");
   } else if (ws->min_latency < lb->min_latency) {
     printf("VERDICT: DISTINGUISHED - migration with an idle CPU came %d"
@@ -605,8 +704,9 @@ print_comparison(const struct scenario_result *ws,
            " than LB or WS steals from non-idle CPUs\n",
            lb->min_latency, ws->min_latency);
   }
-  printf("Attribution rule: mode 1 moves can only be LB (no idle CPU); mode"
-         " 0 moves faster than the LB period can only be WS.\n");
+  printf("Attribution rule: WS is proven by ws_successes, LB by"
+         " lb_migrations; CPU changes seen via getcpu() are only supporting"
+         " evidence.\n");
 }
 
 int

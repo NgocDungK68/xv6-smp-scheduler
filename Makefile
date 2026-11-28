@@ -189,6 +189,7 @@ UPROGS=\
     $U/_lwstress\
     $U/_affdyn\
     $U/_affmig\
+    $U/_ws_lb_test
 
 ifeq ($(IPI),1)
 UPROGS += $U/_ipiwakeup
