@@ -10,6 +10,8 @@ do_work(void)
   volatile int sum = 0;
   for (int i = 0; i < OPS; i++)
     sum += (i % 7) * 3;
+
+  (void)sum;
 }
 
 static int
